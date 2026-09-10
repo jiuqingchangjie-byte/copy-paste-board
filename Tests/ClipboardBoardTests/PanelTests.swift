@@ -8,6 +8,52 @@ import ClipboardCore
 struct PanelTests {
     private func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
 
+    @Test func returnAndKeypadEnterUseAppKitKeyEquivalentRouteOnce() throws {
+        _ = NSApplication.shared
+        let controller = HistoryPanelController()
+        let entries = [HistoryEntry(payload: .text("first")), HistoryEntry(payload: .text("second"))]
+        controller.update(entries: entries, paused: false)
+        let panel = try #require(controller.window as? KeyboardPanel)
+        var accepted: [UUID] = []
+        controller.onPaste = { accepted.append($0.id) }
+        for code: UInt16 in [36, 76] {
+            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                timestamp: Double(code), windowNumber: panel.windowNumber, context: nil,
+                characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: code))
+            #expect(panel.performKeyEquivalent(with: event))
+        }
+        #expect(accepted == [entries[0].id, entries[0].id])
+        let repeated = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: 100, windowNumber: panel.windowNumber, context: nil,
+            characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: true, keyCode: 36))
+        #expect(panel.performKeyEquivalent(with: repeated))
+        #expect(accepted.count == 2)
+    }
+
+    private final class ComposingTextView: NSTextView {
+        override func hasMarkedText() -> Bool { true }
+    }
+
+    @Test func searchFieldReturnCommandPastesSelectedRecordAndRespectsIME() throws {
+        _ = NSApplication.shared
+        let controller = HistoryPanelController()
+        let entries = [HistoryEntry(payload: .text("first")), HistoryEntry(payload: .text("second"))]
+        controller.update(entries: entries, paused: false)
+        let root = try #require(controller.window?.contentView)
+        let search = try #require(descendants(root).compactMap { $0 as? NSSearchField }.first)
+        var accepted: [UUID] = []
+        controller.onPaste = { accepted.append($0.id) }
+        let editor = NSTextView()
+        #expect(controller.control(search, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:))))
+        #expect(controller.control(search, textView: editor, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        #expect(accepted == [entries[1].id])
+        #expect(!controller.control(search, textView: ComposingTextView(), doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        #expect(accepted.count == 1)
+        controller.update(entries: [], paused: false)
+        #expect(controller.control(search, textView: editor, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        #expect(accepted.count == 1)
+    }
+
     @Test func selectionBoundariesSearchDeletionAndEmptyHistory() throws {
         _ = NSApplication.shared
         let controller = HistoryPanelController()

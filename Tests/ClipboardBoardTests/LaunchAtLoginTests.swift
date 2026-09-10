@@ -29,6 +29,20 @@ struct LaunchAtLoginTests {
         }
     }
 
+    @Test func missingRegistrationCanBeRetriedWithoutPretendingItIsEnabled() throws {
+        let system = FakeLoginItem()
+        system.status = .notFound
+        let service = LaunchAtLoginService(service: system, isApplicationBundle: true)
+        #expect(!service.isEnabled)
+        try service.setEnabled(true)
+        #expect(system.registrationCount == 1)
+        #expect(service.isEnabled)
+        system.status = .notFound
+        system.registrationError = NSError(domain: "test", code: 7)
+        #expect(throws: (any Error).self) { try service.setEnabled(true) }
+        #expect(!service.isEnabled)
+    }
+
     @Test func reflectsChangesMadeOutsideTheApp() {
         let system = FakeLoginItem()
         let service = LaunchAtLoginService(service: system, isApplicationBundle: true)
@@ -126,8 +140,8 @@ struct LaunchAtLoginTests {
         #expect(view.statusLabel.stringValue == "等待系统批准 · 尚未生效")
         system.status = .notFound
         view.refresh()
-        #expect(!view.toggle.isEnabled)
-        #expect(view.statusLabel.stringValue == "登录项不可用")
+        #expect(view.toggle.isEnabled)
+        #expect(view.statusLabel.stringValue == "尚未找到登录项 · 可尝试开启")
     }
 
     @Test @MainActor func clickingTheSwitchChangesTheServiceAndShowsTheResult() {

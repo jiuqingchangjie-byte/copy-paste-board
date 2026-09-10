@@ -45,6 +45,7 @@ public struct HistoryEntry: Codable, Equatable, Identifiable {
 }
 
 public struct History {
+    public static let maximumCount = 50
     public private(set) var entries: [HistoryEntry] = []
     public let maxCount: Int
     public let maxBytes: Int
@@ -52,7 +53,7 @@ public struct History {
 
     public init(entries: [HistoryEntry] = [], maxCount: Int = 10,
                 maxBytes: Int = .max, maxItemBytes: Int = 8 * 1024 * 1024) {
-        self.maxCount = max(1, maxCount)
+        self.maxCount = min(max(1, maxCount), Self.maximumCount)
         self.maxBytes = max(1, maxBytes)
         self.maxItemBytes = max(1, maxItemBytes)
         for entry in entries.reversed() { insert(entry) }
@@ -76,6 +77,12 @@ public struct History {
     public mutating func remove(id: UUID) { entries.removeAll { $0.id == id } }
     public mutating func clear() { entries.removeAll() }
 
+    public static func recovering(_ disk: [HistoryEntry], keeping current: [HistoryEntry],
+                                  removedIDs: Set<UUID>, wasCleared: Bool, maxCount: Int) -> History {
+        let recovered = wasCleared ? [] : disk.filter { !removedIDs.contains($0.id) }
+        return History(entries: current + recovered, maxCount: maxCount)
+    }
+
     public func matching(_ query: String) -> [HistoryEntry] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return entries }
@@ -93,11 +100,34 @@ public struct HistoryStorage {
 
     public func load() throws -> [HistoryEntry] {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
-        return try JSONDecoder().decode([HistoryEntry].self, from: Data(contentsOf: fileURL))
+        let data = try Data(contentsOf: fileURL)
+        let decoder = JSONDecoder()
+        // Version 1.2.4 and earlier stored a bare array. Read it without rewriting
+        // until the application has successfully loaded both history and settings.
+        if let array = try? decoder.decode([HistoryEntry].self, from: data) { return array }
+        return try decoder.decode(HistoryDocument.self, from: data).entries
     }
 
     public func save(_ entries: [HistoryEntry]) throws {
-        try PrivateDataFile.write(JSONEncoder().encode(entries), to: fileURL)
+        try PrivateDataFile.write(JSONEncoder().encode(HistoryDocument(entries: entries)), to: fileURL)
+    }
+}
+
+public enum DataFormatError: Error, Equatable {
+    case newerVersion(Int)
+}
+
+private struct HistoryDocument: Codable {
+    let schemaVersion: Int
+    let entries: [HistoryEntry]
+
+    init(entries: [HistoryEntry]) { schemaVersion = 1; self.entries = entries }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == 1 else { throw DataFormatError.newerVersion(schemaVersion) }
+        entries = try values.decode([HistoryEntry].self, forKey: .entries)
     }
 }
 

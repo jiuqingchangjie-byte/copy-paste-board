@@ -4,6 +4,23 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.2.5
+
+- 根据文本编辑中的实机失败补齐回车快捷键/搜索框命令路径，保护输入法组词并忽略长按重复；用户已在构建 2F555699 上确认回车正常粘贴一次。
+- Add Return handling through AppKit key-equivalent and search-field command routes after a TextEdit report, preserving IME composition and ignoring key repeats. The user confirmed a single successful Return paste in TextEdit on build 2F555699.
+
+- 历史上限统一为 1–50 条，旧设置自动收敛；满额后逐条淘汰最早复制的不同内容。
+- 数据格式版本化，新增重试、损坏文件留存后重建；恢复尊重本次删除和清空，未来版本格式只读保护。
+- 新增固定路径安装、发布者签名公证脚本，以及运行版本/构建哈希验收前置检查。
+- 登录项缺失时允许用户重新注册，不再将开关永久禁用；本机重新注册及关闭已实测。
+- 完整执行 81 项 Swift 测试和 8 项构建/安装流程测试。实机状态详见验收文档，未覆盖场景不标为通过。
+
+- Enforce a 1–50 entry limit, normalize legacy settings, and evict the oldest distinct copy one at a time.
+- Version data files and add retry/archive-and-rebuild recovery that respects session deletions and protects future formats.
+- Add stable-path installation, publisher signing/notarization scripts, and process/build identity checks before acceptance.
+- Allow retrying a missing login registration; successful registration and disabling were verified locally.
+- Run all 81 Swift tests and 8 build/install workflow tests. See the acceptance record for live evidence and remaining scenarios.
+
 ## 1.2.4
 
 - 尝试恢复原窗口和输入焦点，优先执行目标应用原生粘贴命令。

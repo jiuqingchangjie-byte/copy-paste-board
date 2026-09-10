@@ -64,23 +64,45 @@ final class KeyboardPanel: NSPanel {
     var onAccept: (() -> Void)?
     var onEscape: (() -> Void)?
     var onDelete: (() -> Void)?
+    var onKeyboardRoute: ((String) -> Void)?
+    private var compositionEventTimestamp: TimeInterval?
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyDown {
-            let composing = (firstResponder as? NSTextView)?.hasMarkedText() ?? false
-            if !composing {
-                switch event.keyCode {
-                case 125: onMove?(1); return
-                case 126: onMove?(-1); return
-                case 36, 76: if !event.isARepeat { onAccept?() }; return
-                case 53: onEscape?(); return
-                case 51 where event.modifierFlags.contains(.command): onDelete?(); return
-                default: break
-                }
-            }
+    func isComposing(for event: NSEvent?) -> Bool {
+        if (firstResponder as? NSTextView)?.hasMarkedText() == true { return true }
+        return event.map { $0.timestamp == compositionEventTimestamp } ?? false
+    }
+
+    private func handleHistoryKey(_ event: NSEvent, route: String) -> Bool {
+        guard event.type == .keyDown else { return false }
+        if (firstResponder as? NSTextView)?.hasMarkedText() == true {
+            compositionEventTimestamp = event.timestamp
+            return false
         }
+        guard !isComposing(for: event) else { return false }
+        switch event.keyCode {
+        case 125: onMove?(1)
+        case 126: onMove?(-1)
+        case 36, 76:
+            onKeyboardRoute?("\(route)：回车\(event.isARepeat ? "重复已忽略" : "已接收")")
+            if !event.isARepeat { onAccept?() }
+        case 53: onEscape?()
+        case 51 where event.modifierFlags.contains(.command): onDelete?()
+        default: return false
+        }
+        return true
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // AppKit may dispatch Return through key-equivalent processing before
+        // NSWindow.sendEvent, particularly while a search field owns focus.
+        if handleHistoryKey(event, route: "快捷键分发") { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if handleHistoryKey(event, route: "窗口按键") { return }
         super.sendEvent(event)
     }
 }
@@ -108,6 +130,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     var onClear: (() -> Void)?
     var onDismiss: (() -> Void)?
     var onOriginChanged: ((NSPoint) -> Void)?
+    var onKeyboardRoute: ((String) -> Void)?
 
     init(origin: NSPoint? = nil) {
         draggedOrigin = origin
@@ -131,6 +154,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         panel.onAccept = { [weak self] in self?.acceptSelection() }
         panel.onEscape = { [weak self] in self?.dismiss() }
         panel.onDelete = { [weak self] in self?.deleteSelection() }
+        panel.onKeyboardRoute = { [weak self] in self?.onKeyboardRoute?($0) }
         buildView(panel)
     }
 
@@ -338,6 +362,21 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         if isVisible, !isShowingMenu { dismiss() }
     }
     func controlTextDidChange(_ obj: Notification) { reload(keepingSelection: false) }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard control === search, !textView.hasMarkedText(),
+              (window as? KeyboardPanel)?.isComposing(for: NSApp.currentEvent) != true else { return false }
+        switch commandSelector {
+        case #selector(NSResponder.insertNewline(_:)):
+            onKeyboardRoute?("搜索框命令：回车已接收")
+            if NSApp.currentEvent?.isARepeat != true { acceptSelection() }
+        case #selector(NSResponder.moveDown(_:)): moveSelection(1)
+        case #selector(NSResponder.moveUp(_:)): moveSelection(-1)
+        case #selector(NSResponder.cancelOperation(_:)): dismiss()
+        default: return false
+        }
+        return true
+    }
 
     private func reload(keepingSelection: Bool) {
         let previousID = keepingSelection ? selectedEntry?.id : nil

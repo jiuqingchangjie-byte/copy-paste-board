@@ -20,10 +20,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var storageReady = false
     private let storageQueue = DispatchQueue(label: "ClipboardBoard.storage", qos: .utility)
     private var saveError: String?
+    private var pendingRemovals = Set<UUID>()
+    private var clearedWhileUnavailable = false
+    private var storageBusy = false
+    private var storageRevision = 0
     private var permissionTimer: Timer?
     private var activationObserver: NSObjectProtocol?
     private var hotKeyRegistered = false
     private var lastPasteProgress = "尚未使用历史记录"
+    private var lastKeyboardRoute = "尚未接收回车"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Keep only one monitor/hotkey owner, even if launched twice from the command line.
@@ -42,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let origin = settings.panelOrigin.map { NSPoint(x: $0[0], y: $0[1]) }
         panel = HistoryPanelController(origin: origin)
         pasteService.onProgress = { [weak self] in self?.lastPasteProgress = $0 }
+        panel.onKeyboardRoute = { [weak self] in self?.lastKeyboardRoute = $0 }
         panel.onOriginChanged = { [weak self] origin in
             guard let self else { return }
             var next = self.settings
@@ -56,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         panel.onDeleteEntry = { [weak self] id in
             guard let self else { return }
+            if !self.storageReady { self.pendingRemovals.insert(id) }
             self.history.remove(id: id)
             self.historyChanged()
         }
@@ -84,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if self.history.insert(HistoryEntry(payload: payload, sourceName: source)) { self.historyChanged() }
         }
         monitor.start()
+        RuntimeIdentity.write()
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self, self.panel.isVisible else { return }
             self.panel.updatePermission(self.pasteService.hasPermission)
@@ -102,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var next = settings
             next.hasLaunched = true
             do { try saveSettings(next) }
-            catch { saveError = "数据保存失败，请将应用放在可写目录后重启。" }
+            catch { if saveError == nil { saveError = "暂时无法保存，记录仍可使用。请打开“数据与恢复”重试。" } }
             showPanel()
         }
     }
@@ -122,25 +130,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func historyChanged() {
         panel.update(entries: history.entries, paused: monitor.isPaused)
         guard storageReady else {
-            panel.showMessage("数据目录尚不可用，本次记录仅在内存中。请检查安装目录。")
+            panel.showMessage("记录暂存于本次运行。打开“数据与恢复”可重试保存。")
             return
         }
         let entries = history.entries
         let storage = storage
+        storageRevision += 1
+        let revision = storageRevision
         storageQueue.async { [weak self] in
             do {
                 try storage.save(entries)
-                DispatchQueue.main.async { self?.saveError = nil }
+                DispatchQueue.main.async {
+                    guard let self, self.storageRevision == revision else { return }
+                    self.saveError = nil
+                }
             } catch {
                 DispatchQueue.main.async {
-                    self?.saveError = "历史记录保存失败，当前记录仅在本次运行有效。"
-                    self?.panel.showMessage(self?.saveError ?? "")
+                    guard let self, self.storageRevision == revision else { return }
+                    self.saveError = "保存暂未完成，记录仍在。打开“数据与恢复”重试。"
+                    self.panel.showMessage(self.saveError ?? "")
                 }
             }
         }
     }
 
     private func loadStoredData() {
+        storageReady = false
         let legacyLimit = UserDefaults.standard.integer(forKey: "maxHistoryCount")
         let legacySettings = AppSettings(
             maxHistoryCount: legacyLimit > 0 ? legacyLimit : 10,
@@ -154,7 +169,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let storedEntries = try storage.load()
             history = History(entries: storedEntries, maxCount: maxCount)
             if history.entries != storedEntries { try storage.save(history.entries) }
+            // Persist the normalized setting too, including an old limit above 50.
+            try dataStore.saveSettings(settings)
             storageReady = true
+            saveError = nil
             for key in ["maxHistoryCount", "historyPanelOrigin", "hasLaunched"] {
                 UserDefaults.standard.removeObject(forKey: key)
             }
@@ -164,7 +182,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let source = FileManager.default.fileExists(atPath: storage.fileURL.path)
                 ? storage : HistoryStorage(fileURL: legacyURL)
             history = History(entries: (try? source.load()) ?? [], maxCount: maxCount)
-            saveError = "数据迁移或读取失败，原文件已保留；请检查安装目录。"
+            if error is DataFormatError {
+                saveError = "数据由更新版本创建。原文件已保留，请使用更新版本打开。"
+            } else {
+                saveError = "部分数据暂时无法读取，原文件已保留。打开“数据与恢复”处理。"
+            }
+        }
+    }
+
+    private var legacyHistoryURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ClipboardBoard/history.json")
+    }
+
+    /// Called on the main thread, after pending writes finish. If startup could
+    /// not read the disk, merge recovered history with this session's copies,
+    /// respecting deletions/clear made while persistence was unavailable.
+    private func retryStorage() {
+        guard !storageBusy else { return }
+        storageBusy = true
+        defer { storageBusy = false }
+        storageQueue.sync {}
+        storageRevision += 1
+        let current = history.entries
+        if !storageReady {
+            loadStoredData()
+            history = History.recovering(history.entries, keeping: current, removedIDs: pendingRemovals,
+                                         wasCleared: clearedWhileUnavailable, maxCount: maxCount)
+        }
+        do {
+            guard storageReady else { panel.update(entries: history.entries, paused: monitor.isPaused); return }
+            try dataStore.saveSettings(settings)
+            try storage.save(history.entries)
+            pendingRemovals.removeAll()
+            clearedWhileUnavailable = false
+            saveError = nil
+            panel.update(entries: history.entries, paused: monitor.isPaused)
+            panel.showMessage("已保存，可以继续使用。")
+        } catch {
+            saveError = "暂时无法保存，记录仍在本次运行中。请确认磁盘空间和目录写入权限后重试。"
         }
     }
 
@@ -283,6 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = item("辅助功能权限…", #selector(openPermissions))
         _ = item("粘贴诊断…", #selector(showPasteDiagnostics))
         _ = item("打开数据目录", #selector(openDataDirectory))
+        _ = item(saveError == nil ? "数据与恢复…" : "数据与恢复…（需要处理）", #selector(showDataRecovery))
         menu.addItem(.separator())
         let version = NSMenuItem(title: "剪贴板 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发版")", action: nil, keyEquivalent: "")
         version.isEnabled = false
@@ -293,6 +350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func clearHistory() {
         pasteService.cancel()
+        if !storageReady { clearedWhileUnavailable = true }
         history.clear()
         historyChanged()
     }
@@ -311,7 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.dismiss()
         let alert = NSAlert()
         alert.messageText = "粘贴诊断"
-        alert.informativeText = "辅助功能：\(AXIsProcessTrusted() ? "已允许" : "未允许")\n模拟按键：\(CGPreflightPostEventAccess() ? "已允许" : "未允许")\n目标程序：\(targetApplication?.localizedName ?? "无")\n最近状态：\(lastPasteProgress)"
+        alert.informativeText = "版本：\(RuntimeIdentity.version) · \(RuntimeIdentity.buildID)\n辅助功能：\(AXIsProcessTrusted() ? "已允许" : "未允许")\n模拟按键：\(CGPreflightPostEventAccess() ? "已允许" : "未允许")\n目标程序：\(targetApplication?.localizedName ?? "无")\n回车路径：\(lastKeyboardRoute)\n最近状态：\(lastPasteProgress)"
         alert.addButton(withTitle: "关闭")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
@@ -320,6 +378,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openDataDirectory() {
         panel.dismiss()
         NSWorkspace.shared.open(dataStore.directoryURL)
+    }
+
+    @objc private func showDataRecovery() {
+        panel.dismiss()
+        let alert = NSAlert()
+        alert.messageText = saveError == nil ? "数据已保存在本机" : "让记录恢复正常保存"
+        alert.informativeText = (saveError ?? "当前没有需要处理的问题。")
+            + "\n\n先尝试“重试”。若文件损坏，可保留原文件后重建；可读记录和本次复制会保留。恢复副本只供手动取回，不会自动导回已删除内容。"
+        alert.addButton(withTitle: saveError == nil ? "完成" : "重试")
+        alert.addButton(withTitle: "打开数据目录")
+        if !storageReady { alert.addButton(withTitle: "保留损坏文件并重建…") }
+        alert.addButton(withTitle: "取消")
+        NSApp.activate(ignoringOtherApps: true)
+        let choice = alert.runModal()
+        if choice == .alertFirstButtonReturn, saveError != nil {
+            retryStorage()
+            showPanel()
+            if saveError == nil { panel.showMessage("已保存，可以继续使用。") }
+        } else if choice == .alertSecondButtonReturn {
+            NSWorkspace.shared.open(dataStore.directoryURL)
+        } else if choice == .alertThirdButtonReturn, !storageReady {
+            let confirm = NSAlert()
+            confirm.messageText = "保留原文件，再恢复记录功能？"
+            confirm.informativeText = "只重建无法解析的文件。原文件会保存在数据目录的 Recovery 文件夹，可读历史和本次复制会保留。更新版本的数据不会被重建。"
+            confirm.addButton(withTitle: "保留并恢复")
+            confirm.addButton(withTitle: "取消")
+            guard confirm.runModal() == .alertFirstButtonReturn else { return }
+            storageQueue.sync {}
+            do {
+                _ = try dataStore.repairCorruptFiles(legacyHistoryURL: legacyHistoryURL, fallbackSettings: settings)
+                retryStorage()
+            } catch {
+                saveError = error is DataFormatError
+                    ? "数据由更新版本创建，请更新应用。原文件没有被修改。"
+                    : "恢复未完成，原文件仍保留。请检查磁盘空间和目录写入权限。"
+            }
+            showPanel()
+            if saveError == nil { panel.showMessage("记录功能已恢复，原文件已保留在 Recovery 中。") }
+        }
     }
 
     @objc private func openLoginSettings() {
@@ -331,20 +428,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.dismiss()
         let alert = NSAlert()
         alert.messageText = "保留多少条历史？"
-        alert.informativeText = "默认 10 条，可设置 1–1000 条。超出上限时自动移除最早记录；调小后立即生效。"
+        alert.informativeText = "默认 10 条，可设置 1–50 条。超出上限时自动移除最早记录；调小后立即生效。"
         alert.addButton(withTitle: "保存")
         alert.addButton(withTitle: "取消")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 26))
         field.stringValue = String(maxCount)
         field.placeholderString = "10"
-        field.setAccessibilityLabel("历史记录数量上限，1 到 1000")
+        field.setAccessibilityLabel("历史记录数量上限，1 到 50")
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
         NSApp.activate(ignoringOtherApps: true)
         while alert.runModal() == .alertFirstButtonReturn {
             guard let limit = Int(field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)),
-                  (1...1000).contains(limit) else {
-                alert.informativeText = "请输入 1 到 1000 之间的整数。"
+                  (1...History.maximumCount).contains(limit) else {
+                alert.informativeText = "请输入 1 到 50 之间的整数。"
                 continue
             }
             var next = settings

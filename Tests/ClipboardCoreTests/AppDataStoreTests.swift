@@ -93,7 +93,7 @@ struct AppDataStoreTests {
         #expect(try decoder.decode(AppSettings.self, from: Data("{}".utf8)) == AppSettings())
         let invalid = Data(#"{"maxHistoryCount":2000,"panelOrigin":[42],"hasLaunched":true}"#.utf8)
         let settings = try decoder.decode(AppSettings.self, from: invalid)
-        #expect(settings.maxHistoryCount == 1000)
+        #expect(settings.maxHistoryCount == 50)
         #expect(settings.panelOrigin == nil)
         #expect(settings.hasLaunched)
     }

@@ -75,21 +75,21 @@ final class LaunchAtLoginMenuView: NSView {
         // An approval-pending request can be switched off to cancel it, but the
         // subtitle explicitly says it is not active yet.
         toggle.state = status == .enabled || status == .requiresApproval ? .on : .off
-        toggle.isEnabled = status == .enabled || status == .disabled || status == .requiresApproval
+        toggle.isEnabled = status != .unknown
         settingsButton.isHidden = status == .enabled || status == .disabled
         let text: String
         switch status {
         case .enabled: text = "已开启"
         case .disabled: text = "已关闭"
         case .requiresApproval: text = "等待系统批准 · 尚未生效"
-        case .notFound: text = "登录项不可用"
+        case .notFound: text = "尚未找到登录项 · 可尝试开启"
         case .unknown: text = "无法读取系统状态"
         }
         statusLabel.stringValue = failureMessage == nil ? text : "更改失败 · \(text)"
         statusLabel.textColor = failureMessage != nil ? .systemRed
             : status == .requiresApproval ? .systemOrange : .secondaryLabelColor
         statusLabel.toolTip = failureMessage ?? text
-        toggle.setAccessibilityHelp(statusLabel.stringValue)
+        toggle.setAccessibilityHelp(failureMessage ?? statusLabel.stringValue)
     }
 
     @objc private func toggleChanged() {

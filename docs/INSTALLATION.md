@@ -1,0 +1,59 @@
+# 安装、更新与一次授权体验 / Installation and permission continuity
+
+## 用户体验目标
+
+普通用户的流程应为：下载发布者已签名并公证的应用 → 放入固定位置 → 首次打开并允许辅助功能 → 开始复制使用。后续同身份更新不主动请求第二遍授权，不要求用户运行证书脚本或配置钥匙串。
+
+macOS 决定权限是否继续有效。这里的“一次授权”指同一台 Mac、同一用户、稳定签名身份与安装位置、没有人为撤销或系统重置的正常升级流程；不能绕过首次授权，也不能承诺跨设备或身份变化后仍免授权。
+
+本机已验证：从 1.2.4 更新到 1.2.5，迁移到用户 Applications 目录，以及同一签名的再次更新后，辅助功能/按键发布权限都继续有效。没有运行 `tccutil reset`，没有删除授权条目或更换证书。
+
+## 本机安装与更新
+
+```bash
+./scripts/build-app.sh
+# 先从菜单退出正在运行的目标应用，再安装。
+./scripts/install-app.sh
+open "$HOME/Applications/ClipboardBoard.app"
+```
+
+安装脚本默认目标为 `$HOME/Applications/ClipboardBoard.app`，也可显式传入来源和目标 `.app` 路径。
+
+- 先验证来源签名和 bundle ID。
+- 更新时，来源应用必须满足目标旧应用的身份要求；不重新签名、不创建证书、不重置授权。
+- 目标仍运行时拒绝替换，避免“磁盘新版、进程旧版”。
+- 先在目标目录暂存并验证，再替换；失败时尽量恢复原包。
+- 已有数据目录不覆盖。首次安装仅在目标没有数据目录时迁移来源旁的数据。
+- 数据一直位于安装目录旁的 `ClipboardBoardData`，需要当前用户可写。
+
+## 发布者流程
+
+源码版本由 `.github/workflows/release.yml` 发布：提交对应的 `docs/releases/vX.Y.Z.md`，确认标签与 Info.plist 版本一致后推送 `vX.Y.Z` 标签。GitHub Actions 会生成源码 ZIP 和 SHA-256 校验文件，再使用该版本的中英文说明创建 Release。源码发行流程不需要本机 GitHub API 凭据，也不上传签名材料。
+
+当前机器只有 `ClipboardBoard Local Development` 本机开发证书。尚无可用 Developer ID Application 证书及公证凭据，因此**本轮没有生成已公证正式分发包**。
+
+准备好发布者证书和已配置的 notarytool Keychain profile 后：
+
+```bash
+CODE_SIGN_IDENTITY="Developer ID Application: Publisher Name (TEAMID)" \
+NOTARY_PROFILE="your-existing-notary-profile" \
+./scripts/package-release.sh
+```
+
+脚本依次编译本机架构、固定应用标识、设置构建编号、Developer ID 签名（hardened runtime + timestamp）、提交公证、staple、校验 Gatekeeper，最后生成带版本与架构的 ZIP 和 SHA-256。公证或验证失败时不会发布候选包。该脚本不修改本机开发包。
+
+发布前仍须：在另一台 Mac 验证首次授权、同身份更新、系统登录项、应用搬移和安装失败恢复。证书、凭据、开发私钥及真实剪贴板历史不得进入仓库或分发 ZIP。
+
+## English
+
+End users should receive a publisher-signed, notarized app, install it at a stable location, and grant Accessibility access once on first use. They must not generate development certificates. macOS retains control of permission continuity; revocation, system resets, different users/devices, or signing-identity changes may require consent again.
+
+`install-app.sh` verifies the source, checks continuity against an existing destination signature, refuses to replace a running destination, stages the bundle, and preserves existing destination data. It does not re-sign the app or reset permissions.
+
+`package-release.sh` is a publisher-only Developer ID/hardened-runtime/notarization/stapling workflow. A production identity and notarization profile are not available on this machine, so no notarized release is claimed. The current local development builds retained both existing paste permissions across upgrade, stable-path installation, and a subsequent update.
+
+## Apple 参考资料
+
+- [Code identity and designated requirements](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements)
+- [Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+- [SMAppService registration](https://developer.apple.com/documentation/servicemanagement/register())

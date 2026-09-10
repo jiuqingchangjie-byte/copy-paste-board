@@ -13,7 +13,7 @@ struct HistoryTests {
         #expect(history.entries.last?.payload == .text("6"))
     }
 
-    @Test(arguments: [1, 3, 10, 37])
+    @Test(arguments: [1, 3, 10, 37, 50])
     func everyNewCopyEvictsOnlyTheOldestAtTheConfiguredLimit(_ limit: Int) {
         var history = History(maxCount: limit)
         for number in 1...(limit + 8) {

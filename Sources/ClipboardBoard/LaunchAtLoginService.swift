@@ -63,7 +63,10 @@ final class LaunchAtLoginService {
         if enabled && (current == .enabled || current == .requiresApproval) { return }
         if !enabled && current == .disabled { return }
         guard isApplicationBundle else { throw ConfigurationError.applicationBundleRequired }
-        guard current != .notFound, current != .unknown else {
+        // A stale/missing registration after moving an app must not trap the
+        // user behind a permanently disabled switch. Let macOS register it
+        // again and return an actionable error if that fails.
+        guard current != .unknown, current != .notFound || enabled else {
             throw ConfigurationError.serviceUnavailable
         }
 
