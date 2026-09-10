@@ -6,6 +6,14 @@ A native macOS menu bar clipboard history app. Press **⌥ Option + V** to find 
 
 Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.2.5**. The application UI is currently in Chinese.
 
+## Download the app
+
+[Download v1.2.5 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.2.5/ClipboardBoard-v1.2.5-macos-arm64.zip)
+
+Extract the ZIP, move `ClipboardBoard.app` to `Applications` inside your home folder (`~/Applications`), and open it. No source build, Xcode, signing tools, or Apple Developer membership is needed. Bilingual installation instructions are included.
+
+The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.2.5)
+
 ## Features
 
 - **Content capture:** plain text, PNG/TIFF images, and local Finder file references.
@@ -30,7 +38,7 @@ The build script targets the host architecture rather than producing a universal
 
 ## Build and install
 
-The signing setup below is for developers. End users should install an app already signed and notarized by its publisher; they should not generate certificates or set up a development environment.
+The setup below is for developers building from source. End users can download the app above without generating certificates or configuring a development environment.
 
 After building locally, install at a stable location:
 
@@ -85,7 +93,7 @@ open dist/ClipboardBoard.app
 
 Missing or unexpectedly changed signing identities stop the build workflow while preserving the existing app bundle. Once built, `./scripts/run.sh` launches the existing app without rebuilding. After an update, quit the old process before opening the new version.
 
-The local self-signed certificate is intended for development on your own Mac. A publisher-only Developer ID signing and notarization script is provided; the required production identity and notarization credentials are not configured on this machine. The development build must not be described as notarized. See [installation and distribution](docs/INSTALLATION.md).
+The compiled download uses a stable self-signed certificate and can be distributed on GitHub without Apple Developer membership. macOS still controls first-open checks. Developer ID signing and notarization remain an optional future distribution path; see [installation and distribution](docs/INSTALLATION.md).
 
 ## Usage
 

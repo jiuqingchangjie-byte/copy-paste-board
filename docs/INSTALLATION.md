@@ -2,7 +2,7 @@
 
 ## 用户体验目标
 
-普通用户的流程应为：下载发布者已签名并公证的应用 → 放入固定位置 → 首次打开并允许辅助功能 → 开始复制使用。后续同身份更新不主动请求第二遍授权，不要求用户运行证书脚本或配置钥匙串。
+已按用户决定采用 GitHub 编译应用分发，不要求 Apple 开发者会员或公证。流程为：下载应用 ZIP → 解压并放入固定可写位置 → 按 macOS 提示允许打开 → 首次允许辅助功能 → 开始使用。用户不需要源码、Xcode、证书脚本或钥匙串配置。首次打开未公证应用的说明见 [直接安装指南](INSTALL_APP.md)。
 
 macOS 决定权限是否继续有效。这里的“一次授权”指同一台 Mac、同一用户、稳定签名身份与安装位置、没有人为撤销或系统重置的正常升级流程；不能绕过首次授权，也不能承诺跨设备或身份变化后仍免授权。
 
@@ -28,9 +28,12 @@ open "$HOME/Applications/ClipboardBoard.app"
 
 ## 发布者流程
 
+当前默认：先构建并验收，再运行 `./scripts/package-app.sh`，它仅打包已验收的应用，不重建、不重新签名。生成 `ClipboardBoard-v版本-macos-架构.zip` 及其 `.sha256` 文件；将两者附加到对应 GitHub Release。包内只包含应用、安装说明和 LICENSE，不包含真实数据或签名材料。
+
+
 源码版本由 `.github/workflows/release.yml` 发布：提交对应的 `docs/releases/vX.Y.Z.md`，确认标签与 Info.plist 版本一致后推送 `vX.Y.Z` 标签。GitHub Actions 会生成源码 ZIP 和 SHA-256 校验文件，再使用该版本的中英文说明创建 Release。源码发行流程不需要本机 GitHub API 凭据，也不上传签名材料。
 
-当前机器只有 `ClipboardBoard Local Development` 本机开发证书。尚无可用 Developer ID Application 证书及公证凭据，因此**本轮没有生成已公证正式分发包**。
+当前使用 `ClipboardBoard Local Development` 固定自签名身份，已提供编译好的下载包，**不声称经过 Apple 公证**。以下公证流程仅供将来有需要时选择，并非 GitHub 发版前置条件。
 
 准备好发布者证书和已配置的 notarytool Keychain profile 后：
 
@@ -46,7 +49,7 @@ NOTARY_PROFILE="your-existing-notary-profile" \
 
 ## English
 
-End users should receive a publisher-signed, notarized app, install it at a stable location, and grant Accessibility access once on first use. They must not generate development certificates. macOS retains control of permission continuity; revocation, system resets, different users/devices, or signing-identity changes may require consent again.
+The chosen distribution path is a compiled, self-signed, unnotarized app on GitHub. End users extract and install it at a stable writable location, follow macOS first-open checks, and grant Accessibility access. They do not need source code, Xcode, certificates, or Apple Developer membership. `package-app.sh` packages the already tested app with installation instructions and a license, preserving its original signature. macOS retains control of permission continuity; revocation, system resets, different users/devices, or signing-identity changes may require consent again.
 
 `install-app.sh` verifies the source, checks continuity against an existing destination signature, refuses to replace a running destination, stages the bundle, and preserves existing destination data. It does not re-sign the app or reset permissions.
 

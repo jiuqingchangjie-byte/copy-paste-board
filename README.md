@@ -6,6 +6,14 @@
 
 采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.2.5**，应用界面目前为中文。
 
+## 直接下载安装
+
+[下载 v1.2.5 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.2.5/ClipboardBoard-v1.2.5-macos-arm64.zip)
+
+解压后将 `ClipboardBoard.app` 放入个人主目录下的 `Applications` 文件夹（`~/Applications`），再打开。不需要源码、Xcode、签名工具或 Apple 开发者会员。包内附有中英文安装说明。
+
+应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.2.5)
+
 ## 功能
 
 - **内容记录**：纯文本、PNG/TIFF 图片和 Finder 本地文件引用。
@@ -30,7 +38,7 @@
 
 ## 从源码安装
 
-以下签名准备步骤只面向开发者。普通用户应安装发布者已签名并公证的应用，不需要自行生成证书或配置开发环境。
+以下步骤只面向需要自行编译的开发者。普通用户下载上方应用包即可，无需生成证书或配置开发环境。
 
 本机开发包构建后，可安装到固定位置：
 
@@ -85,7 +93,7 @@ open dist/ClipboardBoard.app
 
 缺少有效身份或意外更换固定身份时，构建脚本会停止并保留原应用包。已有应用可通过 `./scripts/run.sh` 启动，不会重新构建；更新后请先退出旧进程，再打开新版本。
 
-本机自签名证书用于本机开发。面向其他用户的 Developer ID 签名、公证流程见 [安装与发布](docs/INSTALLATION.md)；脚本已提供，正式证书与公证凭据尚未配置，不能把当前开发包当作已公证安装包。
+当前应用包使用固定自签名证书，可在 GitHub 分发，不要求 Apple 开发者会员；首次打开仍受 macOS 安全策略管理。Developer ID 和公证是可选的后续分发方式，见 [安装与发布](docs/INSTALLATION.md)。
 
 ## 使用方法
 
