@@ -1,0 +1,184 @@
+# ClipboardBoard
+
+[中文](README.md) | **English**
+
+A native macOS menu bar clipboard history app. Press **⌥ Option + V** to find recently copied text, images, and files, select an entry with the arrow keys, and press Return to paste into the original application.
+
+Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.2.4**. The application UI is currently in Chinese.
+
+## Features
+
+- **Content capture:** plain text, PNG/TIFF images, and local Finder file references.
+- **Keyboard workflow:** global shortcut, arrow-key selection, Return to paste, and Esc to dismiss; double-click also works.
+- **Search and deduplication:** search content, file paths, or source application names; repeated content moves to the top.
+- **Configurable history:** keep the latest 10 entries by default, adjustable from 1 to 1,000; the oldest entries are evicted.
+- **Local persistence:** restore history and settings from `ClipboardBoardData` beside the app.
+- **Window and startup controls:** drag the header to save the panel position; enable launch at login with system approval status.
+- **Paste safeguards:** wait for key release and attempt to restore the original window and input focus; cancel pending work when permissions, application focus, or clipboard contents change.
+- **Diagnostics:** inspect paste permissions, the target application, and the latest result without reading input-field text.
+
+## Requirements
+
+| Purpose | Requirement |
+| --- | --- |
+| Run the app | macOS 13 or later |
+| Build from source | macOS, Xcode or Command Line Tools, Swift 5.9+ |
+| Run tests | macOS 14+, Swift 6+; Python 3 for build workflow tests |
+| Package a `.app` | A valid, stable code-signing identity; see below |
+
+The build script targets the host architecture rather than producing a universal binary. The project has been verified on Apple Silicon; Intel and the minimum supported macOS version still require separate validation.
+
+## Build and install
+
+### 1. Clone the repository
+
+```bash
+git clone git@github.com:jiuqingchangjie-byte/copy-paste-board.git
+cd copy-paste-board
+```
+
+SSH cloning requires a public key configured on GitHub. HTTPS is also available:
+
+```bash
+git clone https://github.com/jiuqingchangjie-byte/copy-paste-board.git
+cd copy-paste-board
+```
+
+### 2. Prepare a stable signing identity
+
+For first-time local development:
+
+```bash
+# Generate local signing materials without changing the Keychain.
+./scripts/setup-local-signing.sh --prepare
+
+# Import into the login Keychain and configure user-level trust for code signing only.
+./scripts/setup-local-signing.sh --install
+```
+
+Complete any macOS Keychain prompts during installation. Signing materials live in `.codesign/`, which is excluded from Git. After a successful import, the temporary private-key package and wrapping password file are removed. Reuse the same identity for subsequent builds; do not delete or regenerate the original certificate.
+
+### 3. Build and open the app
+
+```bash
+./scripts/build-app.sh
+open dist/ClipboardBoard.app
+```
+
+If you already have a valid code-signing identity, skip step 2 and use this build command instead:
+
+```bash
+CODE_SIGN_IDENTITY="Your code-signing certificate name or SHA-1 fingerprint" ./scripts/build-app.sh
+open dist/ClipboardBoard.app
+```
+
+Missing or unexpectedly changed signing identities stop the build workflow while preserving the existing app bundle. Once built, `./scripts/run.sh` launches the existing app without rebuilding. After an update, quit the old process before opening the new version.
+
+The local self-signed certificate is intended for development on your own Mac. The current scripts do not include a Developer ID notarization workflow for distribution to other users.
+
+## Usage
+
+Place the cursor in the target application's input field before opening history.
+
+| Action | Shortcut or control |
+| --- | --- |
+| Toggle history | **⌥V**, or click the menu bar icon |
+| Select an entry | **↑ / ↓** |
+| Paste the selected entry | **Return**, or double-click the desired card |
+| Dismiss the panel | **Esc**, or click outside |
+| Delete the selected entry | **⌘Delete** |
+| Search | Type after opening the panel |
+| Change the history limit | **… → 历史记录上限** |
+| Pause / resume capture | **…** menu, or right-click the menu bar icon |
+| Launch at login | **… → 登录时自动启动** |
+| Clear history | **全部清空** in the header, or the clear menu item |
+
+Double-click uses the clicked card even if another entry was selected. Drag the title, icon, or empty header space to move the panel; the clear and menu buttons remain clickable. Pasting a history entry does not add an entry or change the copy order.
+
+### Paste permissions
+
+Use **去授权** in the panel to open **System Settings → Privacy & Security → Accessibility**, then allow the current ClipboardBoard app.
+
+With Accessibility access, the app first attempts the target application's native Paste menu command. Permission to post keyboard events provides an alternative path; both permissions are not required together. History capture and browsing work without these permissions, but Return and double-click report that pasting is unavailable instead of silently becoming copy-only actions.
+
+A disabled Paste command is reported as unavailable. An uncertain menu-action result does not trigger a second automatic paste. Inspect the current state through **… → 粘贴诊断**. Restoring the original input field and receiving the content still depend on the target application's support.
+
+### Launch at login
+
+Use the packaged `.app` from a stable location writable by the current user. Running only `swift run` cannot register the login item. If the menu shows **等待系统批准 · 尚未生效** (awaiting system approval; not active), use **去设置** to approve it, or turn the switch off to cancel the request.
+
+## Data and privacy
+
+```text
+Installation directory/
+├── ClipboardBoard.app
+└── ClipboardBoardData/
+    ├── history.json
+    └── settings.json
+```
+
+- History stores full text, image data, and file URLs. Referenced files themselves are not copied into history.
+- Files are written atomically. Directory permissions are `0700`; data-file permissions are `0600`. Contents are not additionally encrypted.
+- The installation directory must be writable. Move `ClipboardBoardData` alongside the app when relocating it. Use **… → 打开数据目录** to reveal its location.
+- Legacy Application Support data is migrated when possible. Existing new data, including cleared history, takes precedence. A failed migration preserves the original file and displays a message.
+- Recognized transient, concealed, autogenerated, and password-manager clipboard markers are filtered. Sensitive content without those markers may still be recorded.
+- Clearing history saves an empty list without changing the current system clipboard. Deletion and clearing currently have no undo action.
+- Content copied before launch or while paused is not collected retroactively. Pause state does not persist across restarts.
+- `.gitignore` excludes history directories, signing materials, and build output.
+
+## Known limitations
+
+- Text is restored as plain text; HTML / RTF formatting is not retained.
+- Each entry is limited to **8 MiB**; larger entries are skipped. Normal eviction follows the configured entry count, without a total-byte eviction threshold.
+- Clipboard changes are polled approximately every **0.3 seconds**, so very rapid copies may only capture the last value.
+- The global shortcut is fixed at **⌥V**. Conflicts are reported; the menu bar icon remains available.
+- File references may stop working if the original files are moved or deleted.
+- History uses a single JSON file rewritten on each change. Large image histories can increase disk usage, memory consumption, and startup cost.
+- Pinning, full-content previews, cross-device sync, and automatic updates are not implemented.
+
+## Development and verification
+
+```bash
+# Compile without installing certificates or launching the app.
+swift build -c release
+
+# Swift model, clipboard, UI, and paste state-machine tests.
+./scripts/test.sh
+
+# Build and launch workflow tests using temporary directories and fake tools.
+python3 Tests/Scripts/test_build_workflow.py
+```
+
+The current baseline contains **69 Swift tests and 4 build workflow tests**. Tests use sample data and isolated pasteboards. Paste environments are mocked and do not send keystrokes to user applications.
+
+Optionally render AppKit light / dark layout previews:
+
+```bash
+CLIPBOARD_PREVIEW_DIR="$PWD/.build/previews" ./scripts/test.sh
+```
+
+With a signed app and its matching identity available, verify identity continuity across updates:
+
+```bash
+./scripts/verify-signing.sh
+```
+
+This script modifies and re-signs a temporary copy without replacing the original app. Supply `CODE_SIGN_IDENTITY` when using a custom certificate.
+
+Automated tests do not establish compatibility with every target application. Before release, validate text / image / file pasting, Chinese input methods, multiple windows in one app, full-screen windows and Spaces, permission changes, and startup after logging out and back in. Full cross-application validation of 1.2.4 remains pending.
+
+## Project structure
+
+```text
+Sources/ClipboardCore/    History model, settings, storage, and migration
+Sources/ClipboardBoard/   AppKit panel, hotkey, capture, paste, and login service
+Tests/                    Swift tests and Python build workflow tests
+Resources/Info.plist      App identity, version, and minimum macOS version
+scripts/                  Signing setup, build, launch, and verification
+```
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
