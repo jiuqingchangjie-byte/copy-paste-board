@@ -5,14 +5,17 @@ public struct AppSettings: Codable, Equatable {
     public var maxHistoryCount: Int
     public var panelOrigin: [Double]?
     public var hasLaunched: Bool
+    public var preview: PreviewSettings
 
-    public init(maxHistoryCount: Int = 10, panelOrigin: [Double]? = nil, hasLaunched: Bool = false) {
+    public init(maxHistoryCount: Int = 10, panelOrigin: [Double]? = nil, hasLaunched: Bool = false,
+                preview: PreviewSettings = PreviewSettings()) {
         self.maxHistoryCount = min(max(maxHistoryCount, 1), History.maximumCount)
         self.panelOrigin = panelOrigin.flatMap { $0.count == 2 && $0.allSatisfy(\.isFinite) ? $0 : nil }
         self.hasLaunched = hasLaunched
+        self.preview = preview
     }
 
-    private enum CodingKeys: String, CodingKey { case schemaVersion, maxHistoryCount, panelOrigin, hasLaunched }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, maxHistoryCount, panelOrigin, hasLaunched, preview }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -20,7 +23,8 @@ public struct AppSettings: Codable, Equatable {
         guard version == 1 else { throw DataFormatError.newerVersion(version) }
         self.init(maxHistoryCount: try values.decodeIfPresent(Int.self, forKey: .maxHistoryCount) ?? 10,
                   panelOrigin: try values.decodeIfPresent([Double].self, forKey: .panelOrigin),
-                  hasLaunched: try values.decodeIfPresent(Bool.self, forKey: .hasLaunched) ?? false)
+                  hasLaunched: try values.decodeIfPresent(Bool.self, forKey: .hasLaunched) ?? false,
+                  preview: try values.decodeIfPresent(PreviewSettings.self, forKey: .preview) ?? PreviewSettings())
     }
 }
 

@@ -1,115 +1,14 @@
 import AppKit
 import ClipboardCore
 
-/// Clip the actual material, not just the decorative border. Visual-effect
-/// backgrounds have their own compositing layer and also need an alpha mask.
-private final class RoundedPanelView: NSVisualEffectView {
-    static let radius: CGFloat = 16
-    private var maskSize = NSSize.zero
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        material = .popover
-        blendingMode = .behindWindow
-        state = .active
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-        layer?.cornerRadius = Self.radius
-        layer?.cornerCurve = .circular
-        layer?.masksToBounds = true
-        // A separate layer border can leave a light fringe outside the material.
-        layer?.borderWidth = 0
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-    override var isOpaque: Bool { false }
-
-    override func layout() {
-        super.layout()
-        guard bounds.size != maskSize, bounds.width > 0, bounds.height > 0 else { return }
-        maskSize = bounds.size
-        maskImage = NSImage(size: maskSize, flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: Self.radius, yRadius: Self.radius).fill()
-            return true
-        }
-        window?.invalidateShadow()
-    }
-}
-
-private final class DraggableHeaderView: NSView {
-    var onDragFinished: ((NSPoint) -> Void)?
-    override var mouseDownCanMoveWindow: Bool { true }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let hit = super.hitTest(point) else { return nil }
-        // Clear/menu buttons remain clickable; the title, icon and gaps are handles.
-        var view: NSView? = hit
-        while let current = view, current !== self {
-            if current is NSButton { return hit }
-            view = current.superview
-        }
-        return self
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let window else { return }
-        window.performDrag(with: event)
-        onDragFinished?(window.frame.origin)
-    }
-}
-
-final class KeyboardPanel: NSPanel {
-    var onMove: ((Int) -> Void)?
-    var onAccept: (() -> Void)?
-    var onEscape: (() -> Void)?
-    var onDelete: (() -> Void)?
-    var onKeyboardRoute: ((String) -> Void)?
-    private var compositionEventTimestamp: TimeInterval?
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
-
-    func isComposing(for event: NSEvent?) -> Bool {
-        if (firstResponder as? NSTextView)?.hasMarkedText() == true { return true }
-        return event.map { $0.timestamp == compositionEventTimestamp } ?? false
-    }
-
-    private func handleHistoryKey(_ event: NSEvent, route: String) -> Bool {
-        guard event.type == .keyDown else { return false }
-        if (firstResponder as? NSTextView)?.hasMarkedText() == true {
-            compositionEventTimestamp = event.timestamp
-            return false
-        }
-        guard !isComposing(for: event) else { return false }
-        switch event.keyCode {
-        case 125: onMove?(1)
-        case 126: onMove?(-1)
-        case 36, 76:
-            onKeyboardRoute?("\(route)：回车\(event.isARepeat ? "重复已忽略" : "已接收")")
-            if !event.isARepeat { onAccept?() }
-        case 53: onEscape?()
-        case 51 where event.modifierFlags.contains(.command): onDelete?()
-        default: return false
-        }
-        return true
-    }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // AppKit may dispatch Return through key-equivalent processing before
-        // NSWindow.sendEvent, particularly while a search field owns focus.
-        if handleHistoryKey(event, route: "快捷键分发") { return true }
-        return super.performKeyEquivalent(with: event)
-    }
-
-    override func sendEvent(_ event: NSEvent) {
-        if handleHistoryKey(event, route: "窗口按键") { return }
-        super.sendEvent(event)
-    }
-}
-
 final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTableViewDataSource,
                                      NSTableViewDelegate, NSSearchFieldDelegate {
-    private let table = NSTableView()
+    private let table = HistoryTableView()
+    let previews = HistoryPreviewCoordinator()
+    var previewSettings = PreviewSettings() { didSet { previews.hover.cancel() } }
+    private var previewSelectionID: UUID?
+    private weak var previewResponder: NSResponder?
+    private var scrollObserver: NSObjectProtocol?
     private let search = NSSearchField()
     private let countLabel = NSTextField(labelWithString: "0 条记录")
     private let emptyTitle = NSTextField(labelWithString: "你的下一次复制，会出现在这里")
@@ -131,6 +30,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     var onDismiss: (() -> Void)?
     var onOriginChanged: ((NSPoint) -> Void)?
     var onKeyboardRoute: ((String) -> Void)?
+    var onCopyPreviewText: ((String) -> Bool)?
 
     init(origin: NSPoint? = nil) {
         draggedOrigin = origin
@@ -147,15 +47,19 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
+        panel.acceptsMouseMovedEvents = true
         panel.isMovable = true
         panel.isMovableByWindowBackground = false
         panel.delegate = self
         panel.onMove = { [weak self] in self?.moveSelection($0) }
         panel.onAccept = { [weak self] in self?.acceptSelection() }
-        panel.onEscape = { [weak self] in self?.dismiss() }
+        panel.onEscape = { [weak self] in self?.closePreviewOrDismiss() }
+        panel.onPreview = { [weak self] in self?.toggleSelectedPreview() }
+        panel.isPreviewOpen = { [weak self] in self?.previews.isPreviewing == true }
         panel.onDelete = { [weak self] in self?.deleteSelection() }
         panel.onKeyboardRoute = { [weak self] in self?.onKeyboardRoute?($0) }
         buildView(panel)
+        configurePreviews()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -302,6 +206,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     }
 
     func present(entries: [HistoryEntry], hasPermission: Bool, paused: Bool) {
+        if isVisible { dismiss() }
         allEntries = entries
         search.stringValue = ""
         messageLabel.isHidden = true
@@ -330,7 +235,8 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
             if self?.isShowingMenu == false { self?.dismiss() }
         }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if self?.isShowingMenu == false, event.window !== self?.window { self?.dismiss() }
+            if let self, !self.isShowingMenu, event.window !== self.window,
+               !self.previews.contains(event.window) { self.dismiss() }
             return event
         }
     }
@@ -343,7 +249,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
 
     func updatePermission(_ allowed: Bool) {
         permissionRow.isHidden = allowed
-        footerLabel.stringValue = "↑ ↓ 选择    ↩ 粘贴    esc 关闭"
+        footerLabel.stringValue = "↑ ↓ 选择   空格预览   ↩ 粘贴   esc 关闭"
     }
 
     func showMessage(_ text: String) {
@@ -352,6 +258,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     }
 
     func dismiss() {
+        previews.closeTransient(restoreSelection: false)
         if let outsideMonitor { NSEvent.removeMonitor(outsideMonitor); self.outsideMonitor = nil }
         if let localMonitor { NSEvent.removeMonitor(localMonitor); self.localMonitor = nil }
         window?.orderOut(nil)
@@ -359,26 +266,32 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        if isVisible, !isShowingMenu { dismiss() }
+        checkFamilyFocus()
     }
     func controlTextDidChange(_ obj: Notification) { reload(keepingSelection: false) }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         guard control === search, !textView.hasMarkedText(),
               (window as? KeyboardPanel)?.isComposing(for: NSApp.currentEvent) != true else { return false }
+        if previews.isPreviewing {
+            if commandSelector == #selector(NSResponder.cancelOperation(_:)) { closePreviewOrDismiss(); return true }
+            if [#selector(NSResponder.insertNewline(_:)), #selector(NSResponder.moveDown(_:)),
+                #selector(NSResponder.moveUp(_:))].contains(commandSelector) { return true }
+        }
         switch commandSelector {
         case #selector(NSResponder.insertNewline(_:)):
             onKeyboardRoute?("搜索框命令：回车已接收")
             if NSApp.currentEvent?.isARepeat != true { acceptSelection() }
         case #selector(NSResponder.moveDown(_:)): moveSelection(1)
         case #selector(NSResponder.moveUp(_:)): moveSelection(-1)
-        case #selector(NSResponder.cancelOperation(_:)): dismiss()
+        case #selector(NSResponder.cancelOperation(_:)): closePreviewOrDismiss()
         default: return false
         }
         return true
     }
 
     private func reload(keepingSelection: Bool) {
+        previews.hover.cancel()
         let previousID = keepingSelection ? selectedEntry?.id : nil
         let previousRow = table.selectedRow
         let query = search.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -396,6 +309,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
             table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             table.scrollRowToVisible(row)
         }
+        previews.reconcile(entries: filteredEntries)
     }
 
     private var selectedEntry: HistoryEntry? {
@@ -403,18 +317,28 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     }
 
     private func moveSelection(_ delta: Int) {
+        previews.hover.cancel()
         guard !filteredEntries.isEmpty else { return }
         let row = max(0, min(filteredEntries.count - 1, table.selectedRow + delta))
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         table.scrollRowToVisible(row)
     }
 
-    private func acceptSelection() { if let selectedEntry { onPaste?(selectedEntry) } }
-    private func deleteSelection() { if let selectedEntry { onDeleteEntry?(selectedEntry.id) } }
+    private func acceptSelection() {
+        previews.hover.cancel()
+        guard !previews.isPreviewing else { return }
+        if let selectedEntry { onPaste?(selectedEntry) }
+    }
+    private func deleteSelection() {
+        previews.hover.cancel()
+        guard !previews.isPreviewing else { return }
+        if let selectedEntry { onDeleteEntry?(selectedEntry.id) }
+    }
     @objc private func doubleClick() { useClickedRow(table.clickedRow) }
 
     func useClickedRow(_ row: Int) {
         guard filteredEntries.indices.contains(row) else { return }
+        previews.closeTransient(restoreSelection: false)
         // Use the clicked item even when keyboard selection is empty or elsewhere.
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         onPaste?(filteredEntries[row])
@@ -422,11 +346,104 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     @objc private func requestPermission() { onPermission?() }
     @objc private func clearHistory() { onClear?() }
     @objc private func showMenu(_ sender: NSButton) {
+        previews.hover.cancel()
         isShowingMenu = true
         defer { isShowingMenu = false }
         onMenu?(sender)
     }
     func numberOfRows(in tableView: NSTableView) -> Int { filteredEntries.count }
+
+    private func configurePreviews() {
+        previews.onCopyText = { [weak self] in self?.onCopyPreviewText?($0) == true }
+        previews.onRestoreSelection = { [weak self] in self?.restorePreviewSelection() }
+        previews.onFamilyResignKey = { [weak self] in self?.checkFamilyFocus() }
+        table.onHoverRow = { [weak self] row in self?.scheduleHover(row: row) }
+        table.onCancelHover = { [weak self] in self?.previews.hover.cancel() }
+        table.contextMenuForRow = { [weak self] row in self?.previewMenu(row: row) }
+        if let clip = table.enclosingScrollView?.contentView {
+            clip.postsBoundsChangedNotifications = true
+            scrollObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification,
+                object: clip, queue: .main) { [weak self] _ in self?.previews.hover.cancel() }
+        }
+    }
+
+    private func scheduleHover(row: Int) {
+        guard previewSettings.hoverEnabled, isVisible, !isShowingMenu,
+              filteredEntries.indices.contains(row) else { previews.hover.cancel(); return }
+        let id = filteredEntries[row].id
+        if previews.transient?.entryID == id { return }
+        previews.hover.schedule(id: id, delay: previewSettings.hoverDelay) { [weak self] in
+            guard let self, self.isVisible, !self.isShowingMenu,
+                  let row = self.filteredEntries.firstIndex(where: { $0.id == id }),
+                  self.table.visibleRect.intersects(self.table.rect(ofRow: row)) else { return }
+            self.showPreview(row: row, takeFocus: false)
+        }
+    }
+
+    func showPreview(row: Int, takeFocus: Bool) {
+        guard filteredEntries.indices.contains(row), let window else { return }
+        if !previews.isPreviewing {
+            previewSelectionID = selectedEntry?.id
+            previewResponder = window.firstResponder
+        }
+        let rect = table.convert(table.rect(ofRow: row), to: nil)
+        previews.show(entry: filteredEntries[row], anchor: window.convertToScreen(rect), parent: window, takeFocus: takeFocus)
+    }
+
+    private func toggleSelectedPreview() {
+        previews.hover.cancel()
+        if previews.isPreviewing { previews.closeTransient(restoreSelection: true) }
+        else { showPreview(row: table.selectedRow, takeFocus: true) }
+    }
+
+    private func closePreviewOrDismiss() {
+        if previews.isPreviewing { previews.closeTransient(restoreSelection: true) }
+        else { dismiss() }
+    }
+
+    private func restorePreviewSelection() {
+        guard isVisible else { return }
+        if let id = previewSelectionID, let row = filteredEntries.firstIndex(where: { $0.id == id }) {
+            table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            table.scrollRowToVisible(row)
+        }
+        window?.makeKey()
+        if previewResponder is NSTextView { window?.makeFirstResponder(search) }
+        else { window?.makeFirstResponder(previewResponder ?? table) }
+    }
+
+    private func checkFamilyFocus() {
+        // Key-window notifications arrive before the replacement is established.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isVisible, !self.isShowingMenu else { return }
+            if NSApp.keyWindow !== self.window, !self.previews.contains(NSApp.keyWindow) { self.dismiss() }
+        }
+    }
+
+    private func previewMenu(row: Int) -> NSMenu? {
+        guard filteredEntries.indices.contains(row) else { return nil }
+        let entry = filteredEntries[row]
+        let menu = NSMenu()
+        menu.delegate = self
+        let title: String
+        if case .image = entry.payload { title = "查看原图" } else { title = "预览完整内容" }
+        let item = menu.addItem(withTitle: title, action: #selector(previewFromMenu(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = entry.id
+        return menu
+    }
+
+    @objc private func previewFromMenu(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID,
+              let row = filteredEntries.firstIndex(where: { $0.id == id }) else { return }
+        showPreview(row: row, takeFocus: true)
+    }
+
+    deinit {
+        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+        if let outsideMonitor { NSEvent.removeMonitor(outsideMonitor) }
+        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
+    }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         if case .image = filteredEntries[row].payload { return 126 }
@@ -443,101 +460,10 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     }
 }
 
-private final class ClipRowView: NSTableRowView {
-    override func drawBackground(in dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 4), xRadius: 10, yRadius: 10)
-        NSColor.controlBackgroundColor.withAlphaComponent(0.72).setFill()
-        path.fill()
-        NSColor.separatorColor.withAlphaComponent(0.25).setStroke()
-        path.stroke()
+extension HistoryPanelController: NSMenuDelegate {
+    func menuWillOpen(_ menu: NSMenu) {
+        isShowingMenu = true
+        previews.hover.cancel()
     }
-
-    override func drawSelection(in dirtyRect: NSRect) {
-        guard isSelected else { return }
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 4), xRadius: 10, yRadius: 10)
-        NSColor.controlAccentColor.withAlphaComponent(0.10).setFill()
-        path.fill()
-        NSColor.controlAccentColor.withAlphaComponent(0.8).setStroke()
-        path.lineWidth = 1.5
-        path.stroke()
-    }
-
-    override var interiorBackgroundStyle: NSView.BackgroundStyle { .normal }
-}
-
-private final class ClipCellView: NSTableCellView {
-    private let preview = NSImageView()
-    private let title = NSTextField(wrappingLabelWithString: "")
-    private let detail = NSTextField(labelWithString: "")
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        preview.imageScaling = .scaleProportionallyUpOrDown
-        preview.wantsLayer = true
-        preview.layer?.cornerRadius = 7
-        preview.layer?.masksToBounds = true
-        title.font = .systemFont(ofSize: 13)
-        title.maximumNumberOfLines = 2
-        title.lineBreakMode = .byTruncatingTail
-        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        detail.font = .systemFont(ofSize: 10)
-        detail.textColor = .secondaryLabelColor
-        detail.lineBreakMode = .byTruncatingTail
-        let row = NSStackView(views: [title, preview, detail])
-        row.orientation = .vertical
-        row.spacing = 7
-        row.alignment = .leading
-        row.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(row)
-        NSLayoutConstraint.activate([
-            preview.widthAnchor.constraint(equalTo: row.widthAnchor),
-            preview.heightAnchor.constraint(equalToConstant: 84),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            row.centerYAnchor.constraint(equalTo: centerYAnchor),
-            title.widthAnchor.constraint(equalTo: row.widthAnchor),
-            detail.widthAnchor.constraint(equalTo: row.widthAnchor)
-        ])
-        textField = title
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(_ entry: HistoryEntry) {
-        var kind: String
-        switch entry.payload {
-        case .text(let text):
-            preview.isHidden = true
-            title.stringValue = String(text.prefix(500)).replacingOccurrences(of: "\n", with: "  ")
-                .replacingOccurrences(of: "\r", with: " ")
-            preview.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: "文本")
-            preview.contentTintColor = .secondaryLabelColor
-            kind = "文本 · \(text.count) 字符"
-            toolTip = String(text.prefix(2000))
-        case .image(let data):
-            title.isHidden = true
-            let image = NSImage(data: data)
-            preview.image = image
-            title.stringValue = "图片"
-            if let rep = image?.representations.first {
-                kind = "图片 · \(rep.pixelsWide) × \(rep.pixelsHigh)"
-            } else { kind = "图片" }
-        case .files(let paths):
-            preview.isHidden = true
-            let urls = paths.compactMap(URL.init(string:))
-            title.stringValue = urls.map(\.lastPathComponent).joined(separator: "、")
-            preview.image = NSImage(systemSymbolName: paths.count > 1 ? "doc.on.doc" : "doc", accessibilityDescription: "文件")
-            preview.contentTintColor = .secondaryLabelColor
-            kind = "\(paths.count) 个文件"
-            toolTip = urls.map(\.path).joined(separator: "\n")
-        }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.unitsStyle = .short
-        let source = entry.sourceName.isEmpty ? "" : " · \(entry.sourceName)"
-        let age = Date().timeIntervalSince(entry.copiedAt)
-        let time = age < 60 ? "刚刚" : formatter.localizedString(for: entry.copiedAt, relativeTo: Date())
-        detail.stringValue = "\(kind)\(source) · \(time)"
-        setAccessibilityLabel("\(title.stringValue)，\(detail.stringValue)")
-    }
+    func menuDidClose(_ menu: NSMenu) { isShowingMenu = false }
 }

@@ -13,7 +13,7 @@
 
 最低目标系统为 macOS 13；本发布包在 Apple Silicon、macOS 26.6.2 上验收，其他系统版本尚未逐一验证。
 
-校验文件为同一 Release 下的 `ClipboardBoard-v1.2.5-macos-arm64.zip.sha256`。包内不含任何用户的剪贴板历史、签名私钥或账号凭据。
+校验文件为同一 Release 下的 `ClipboardBoard-v1.3.0-macos-arm64.zip.sha256`。包内不含任何用户的剪贴板历史、签名私钥或账号凭据。
 
 [Apple 关于打开未公证应用的说明](https://support.apple.com/zh-cn/102445)
 

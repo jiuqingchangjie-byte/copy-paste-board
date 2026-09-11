@@ -4,18 +4,19 @@
 
 一个原生 macOS 菜单栏剪贴板历史工具。按 **⌥ Option + V** 找回最近复制的文字、图片和文件，使用方向键选择，再按回车粘贴到原应用。
 
-采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.2.5**，应用界面目前为中文。
+采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.3.0**，应用界面目前为中文。
 
 ## 直接下载安装
 
-[下载 v1.2.5 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.2.5/ClipboardBoard-v1.2.5-macos-arm64.zip)
+[下载 v1.3.0 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.3.0/ClipboardBoard-v1.3.0-macos-arm64.zip)
 
 解压后将 `ClipboardBoard.app` 放入个人主目录下的 `Applications` 文件夹（`~/Applications`），再打开。不需要源码、Xcode、签名工具或 Apple 开发者会员。包内附有中英文安装说明。
 
-应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.2.5)
+应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.3.0)
 
 ## 功能
 
+- **完整预览**：默认悬浮 1 秒查看全文，可滚动、选择片段复制；原图支持缩放和独立置顶拖动。延时与开关可在“完整预览选项”配置。[使用与验收](docs/PREVIEW.md)。
 - **内容记录**：纯文本、PNG/TIFF 图片和 Finder 本地文件引用。
 - **键盘操作**：全局快捷键呼出、方向键选择、回车粘贴、Esc 关闭；也支持双击使用。
 - **搜索与去重**：按内容、文件路径或来源应用搜索；重复内容移到最前。
@@ -107,6 +108,9 @@ open dist/ClipboardBoard.app
 | 关闭面板 | **Esc**，或点击面板外 |
 | 删除选中记录 | **⌘Delete** |
 | 搜索 | 打开面板后直接输入关键词 |
+| 完整内容预览 | 悬浮条目、右键菜单，或列表焦点下按空格；搜索空格仍输入文字 |
+| 图片置顶 | 图片右键“查看原图” → “置顶固定”；拖动顶部移动 |
+| 预览选项 | **… → 完整预览选项**，0.2–5 秒，可关闭悬浮 |
 | 修改历史上限 | **… → 历史记录上限** |
 | 暂停 / 继续记录 | **…** 菜单，或右键菜单栏图标 |
 | 登录自启 | **… → 登录时自动启动** |
@@ -155,7 +159,7 @@ open dist/ClipboardBoard.app
 - 快捷键目前固定为 **⌥V**；冲突时会提示，可改用菜单栏图标打开。
 - 文件引用在原文件移动或删除后可能失效。
 - 历史保存在单个 JSON 文件，每次变化整体保存；大量图片可能增加存储、内存和启动开销。
-- 当前没有收藏固定、完整内容预览、跨设备同步或自动更新功能。
+- 当前没有收藏管理、跨设备同步或自动更新功能；图片置顶窗口不是持久化收藏。
 
 ## 开发与验证
 
@@ -170,7 +174,7 @@ swift build -c release
 python3 -m unittest discover -s Tests/Scripts -p 'test_*.py'
 ```
 
-当前基线包含 **81 项 Swift 测试和 8 项构建与安装流程测试**。测试使用样例数据和独立剪贴板；粘贴环境采用模拟实现，不向用户应用发送按键。
+当前基线包含 **93 项 Swift 测试和 8 项构建与安装流程测试**。测试使用样例数据和独立剪贴板；粘贴环境采用模拟实现，不向用户应用发送按键。
 
 可选生成 AppKit 浅色 / 深色布局预览：
 
@@ -189,7 +193,7 @@ CLIPBOARD_PREVIEW_DIR="$PWD/.build/previews" ./scripts/test.sh
 每轮实机验收先核对进程与本轮构建，安装位置不是 `dist` 时显式传入路径：
 
 ```bash
-./scripts/verify-running.sh 1.2.5 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.3.0 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 脚本会比较运行路径、版本、构建编号、可执行文件哈希和签名，并与本轮 `dist` 构建对照；同版本旧构建也会被拒绝。

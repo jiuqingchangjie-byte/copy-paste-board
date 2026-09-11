@@ -4,6 +4,8 @@ import ClipboardCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = PasteboardMonitor()
+    private lazy var previewCopy = PreviewCopyService(monitor: monitor)
+    private let previewPreferences = PreviewPreferencesController()
     private let hotKey = GlobalHotKey()
     private let pasteService = PasteService()
     private let launchAtLogin = LaunchAtLoginService()
@@ -46,6 +48,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loadStoredData()
         let origin = settings.panelOrigin.map { NSPoint(x: $0[0], y: $0[1]) }
         panel = HistoryPanelController(origin: origin)
+        panel.previewSettings = settings.preview
+        previewCopy.onCopied = { [weak self] entry in
+            guard let self else { return }
+            if self.history.insert(entry) { self.historyChanged() }
+        }
+        panel.onCopyPreviewText = { [weak self] in self?.previewCopy.copy($0) == true }
         pasteService.onProgress = { [weak self] in self?.lastPasteProgress = $0 }
         panel.onKeyboardRoute = { [weak self] in self?.lastKeyboardRoute = $0 }
         panel.onOriginChanged = { [weak self] origin in
@@ -116,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        panel?.previews.closeAll()
         permissionTimer?.invalidate()
         if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
         // Finish pending atomic saves before quitting, including a pending clear.
@@ -207,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let current = history.entries
         if !storageReady {
             loadStoredData()
+            panel.previewSettings = settings.preview
             history = History.recovering(history.entries, keeping: current, removedIDs: pendingRemovals,
                                          wasCleared: clearedWhileUnavailable, maxCount: maxCount)
         }
@@ -326,6 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         _ = item("打开历史记录    ⌥V", #selector(togglePanel))
         _ = item("历史记录上限：\(maxCount) 条…", #selector(configureLimit))
+        _ = item("完整预览选项…", #selector(configurePreview))
         let login = NSMenuItem(title: "登录时自动启动", action: nil, keyEquivalent: "")
         login.view = LaunchAtLoginMenuView(service: launchAtLogin) { [weak self, weak menu] in
             menu?.cancelTracking()
@@ -454,6 +465,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             history = History(entries: history.entries, maxCount: limit)
             historyChanged()
             break
+        }
+    }
+
+    @objc private func configurePreview() {
+        panel.dismiss()
+        previewPreferences.edit(current: settings.preview) { [self] preview in
+            var next = settings
+            next.preview = preview
+            try saveSettings(next)
+            panel.previewSettings = preview
         }
     }
 

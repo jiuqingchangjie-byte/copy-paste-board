@@ -4,6 +4,14 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.3.0
+
+- 新增可配置悬浮全文预览、选区复制入历史、图片原图缩放和独立置顶拖动；Esc 恢复原选择，搜索空格和预览回车不误触粘贴。
+- 按 History、Preview、Preferences、WindowChrome 拆分窗口及交互职责，旧设置默认启用 1 秒悬浮。
+- Add configurable full-content hover previews, explicit selection copying, original-image zoom and movable pinned windows. Preserve search input and selection, and isolate preview keys from paste actions.
+- Separate history, preview, preferences and shared window chrome; retain legacy settings compatibility.
+- 验收 / Acceptance: [完整预览记录](docs/PREVIEW.md) · [发布说明 / Release notes](docs/releases/v1.3.0.md)。
+
 ## 1.2.5
 
 - 根据文本编辑中的实机失败补齐回车快捷键/搜索框命令路径，保护输入法组词并忽略长按重复；用户已在构建 2F555699 上确认回车正常粘贴一次。
