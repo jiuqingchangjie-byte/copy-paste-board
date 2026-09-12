@@ -1,3 +1,5 @@
+> 1.4.0 自定义快捷键的实现、运行核对与验收边界见 [CUSTOM_SHORTCUT.md](CUSTOM_SHORTCUT.md)。
+
 > 1.3.1 JSON 格式化的实现、运行版本核对及本机验收见 [JSON_PREVIEW.md](JSON_PREVIEW.md)。
 
 > 1.3.0 完整预览的任务拆分、版本核对及验收证据见 [PREVIEW.md](PREVIEW.md)。下文保留 1.2.5 历史证据。

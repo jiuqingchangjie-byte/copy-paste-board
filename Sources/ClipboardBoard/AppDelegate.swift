@@ -7,6 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var previewCopy = PreviewCopyService(monitor: monitor)
     private let previewPreferences = PreviewPreferencesController()
     private let hotKey = GlobalHotKey()
+    private let shortcutPreferences = ShortcutPreferencesController()
+    private var shortcutName: String { (hotKey.activeShortcut ?? settings.shortcut).displayName }
+    private var shortcutError: String?
     private let pasteService = PasteService()
     private let launchAtLogin = LaunchAtLoginService()
     private var panel: HistoryPanelController!
@@ -87,13 +90,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "clipboard", accessibilityDescription: "剪贴板")
             button.image?.isTemplate = true
-            button.toolTip = "剪贴板 · ⌥V"
+            button.toolTip = "剪贴板 · \(shortcutName)"
             button.target = self
             button.action = #selector(statusClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
-        hotKey.onPress = { [weak self] in self?.togglePanel() }
-        hotKeyRegistered = hotKey.register() == noErr
+        hotKey.onPress = { [weak self] in
+            guard let self else { return }
+            if self.shortcutPreferences.isVisible {
+                self.shortcutPreferences.receiveRegisteredShortcut(self.hotKey.activeShortcut ?? self.settings.shortcut)
+            } else { self.togglePanel() }
+        }
+        registerConfiguredShortcut()
         monitor.onCapture = { [weak self] payload, source in
             guard let self else { return }
             if self.history.insert(HistoryEntry(payload: payload, sourceName: source)) { self.historyChanged() }
@@ -132,6 +140,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if shortcutPreferences.isVisible {
+            shortcutPreferences.window?.makeKeyAndOrderFront(nil)
+            return false
+        }
         showPanel()
         return false
     }
@@ -217,6 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !storageReady {
             loadStoredData()
             panel.previewSettings = settings.preview
+            registerConfiguredShortcut()
             history = History.recovering(history.entries, keeping: current, removedIDs: pendingRemovals,
                                          wasCleared: clearedWhileUnavailable, maxCount: maxCount)
         }
@@ -269,6 +282,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func togglePanel() {
+        if shortcutPreferences.isVisible { shortcutPreferences.window?.makeKeyAndOrderFront(nil); return }
         if panel.isVisible { panel.dismiss() }
         else { showPanel() }
     }
@@ -285,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         pasteService.captureTarget(targetApplication)
         panel.present(entries: history.entries, hasPermission: pasteService.hasPermission, paused: monitor.isPaused)
-        if !hotKeyRegistered { panel.showMessage("⌥V 注册失败，可能已被其他应用占用。可点击菜单栏图标打开。") }
+        if !hotKeyRegistered { panel.showMessage(shortcutError ?? "\(shortcutName) 未注册，可从菜单栏重新设置快捷键。") }
         else if let saveError { panel.showMessage(saveError) }
     }
 
@@ -307,7 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.panel.showMessage("未粘贴：请点击“去授权”，允许辅助功能后再使用。")
             case .targetUnavailable:
                 self.showPanel()
-                self.panel.showMessage("未粘贴：请先点击目标输入框，再按 ⌥V 选择记录。")
+                self.panel.showMessage("未粘贴：请先点击目标输入框，再按 \(self.shortcutName) 选择记录。")
             case .focusChanged:
                 break // Respect a deliberate switch to another application.
             case .keysStillPressed:
@@ -334,7 +348,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item)
             return item
         }
-        _ = item("打开历史记录    ⌥V", #selector(togglePanel))
+        _ = item("打开历史记录    \(shortcutName)", #selector(togglePanel))
+        _ = item("自定义快捷键…（\(shortcutName)）", #selector(configureShortcut))
         _ = item("历史记录上限：\(maxCount) 条…", #selector(configureLimit))
         _ = item("完整预览选项…", #selector(configurePreview))
         let login = NSMenuItem(title: "登录时自动启动", action: nil, keyEquivalent: "")
@@ -433,6 +448,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openLoginSettings() {
         panel.dismiss()
         launchAtLogin.openSettings()
+    }
+
+    private func registerConfiguredShortcut() {
+        do { try hotKey.set(settings.shortcut); shortcutError = nil }
+        catch { shortcutError = error.localizedDescription }
+        hotKeyRegistered = hotKey.activeShortcut == settings.shortcut
+        refreshShortcutLabels()
+    }
+
+    private func refreshShortcutLabels() {
+        statusItem?.button?.toolTip = "剪贴板 · \(shortcutName)"
+        panel.shortcutName = hotKey.activeShortcut?.displayName ?? shortcutName
+    }
+
+    @objc private func configureShortcut() {
+        panel.dismiss()
+        shortcutPreferences.present(current: settings.shortcut, isRegistered: hotKeyRegistered) { [weak self] shortcut in
+            guard let self else { return }
+            var next = self.settings
+            next.shortcut = shortcut
+            try self.hotKey.set(shortcut) { try self.saveSettings(next) }
+            self.hotKeyRegistered = true
+            self.shortcutError = nil
+            self.refreshShortcutLabels()
+        }
     }
 
     @objc private func configureLimit() {

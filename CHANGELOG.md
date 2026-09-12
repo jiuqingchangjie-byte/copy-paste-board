@@ -4,6 +4,12 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.4.0
+
+- 新增自定义全局快捷键：主动录制、系统/排他注册冲突检查、保存失败保留旧组合、恢复默认和重启恢复。菜单与历史提示显示当前组合。
+- Add configurable global shortcuts with explicit recording, system/exclusive registration checks, transactional saving, default restoration, restart persistence, and updated UI labels.
+- 117 项 Swift 测试、8 项流程测试通过，实机及接口边界见 [快捷键验收](docs/CUSTOM_SHORTCUT.md)。
+
 ## 1.3.1
 
 - 完整文本预览新增“JSON 格式化”和“查看原文”，只调整展示，不改剪贴板或历史。保持数字精度、重复键、顺序及转义；后台处理，失败提示行列并保留原文。

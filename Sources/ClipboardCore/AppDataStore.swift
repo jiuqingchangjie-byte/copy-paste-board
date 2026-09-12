@@ -5,17 +5,19 @@ public struct AppSettings: Codable, Equatable {
     public var maxHistoryCount: Int
     public var panelOrigin: [Double]?
     public var hasLaunched: Bool
+    public var shortcut: KeyboardShortcut
     public var preview: PreviewSettings
 
     public init(maxHistoryCount: Int = 10, panelOrigin: [Double]? = nil, hasLaunched: Bool = false,
-                preview: PreviewSettings = PreviewSettings()) {
+                preview: PreviewSettings = PreviewSettings(), shortcut: KeyboardShortcut = .default) {
         self.maxHistoryCount = min(max(maxHistoryCount, 1), History.maximumCount)
         self.panelOrigin = panelOrigin.flatMap { $0.count == 2 && $0.allSatisfy(\.isFinite) ? $0 : nil }
         self.hasLaunched = hasLaunched
         self.preview = preview
+        self.shortcut = shortcut.isValid ? shortcut : .default
     }
 
-    private enum CodingKeys: String, CodingKey { case schemaVersion, maxHistoryCount, panelOrigin, hasLaunched, preview }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, maxHistoryCount, panelOrigin, hasLaunched, preview, shortcut }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -24,7 +26,8 @@ public struct AppSettings: Codable, Equatable {
         self.init(maxHistoryCount: try values.decodeIfPresent(Int.self, forKey: .maxHistoryCount) ?? 10,
                   panelOrigin: try values.decodeIfPresent([Double].self, forKey: .panelOrigin),
                   hasLaunched: try values.decodeIfPresent(Bool.self, forKey: .hasLaunched) ?? false,
-                  preview: try values.decodeIfPresent(PreviewSettings.self, forKey: .preview) ?? PreviewSettings())
+                  preview: try values.decodeIfPresent(PreviewSettings.self, forKey: .preview) ?? PreviewSettings(),
+                  shortcut: try values.decodeIfPresent(KeyboardShortcut.self, forKey: .shortcut) ?? .default)
     }
 }
 

@@ -11,6 +11,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     private var scrollObserver: NSObjectProtocol?
     private let search = NSSearchField()
     private let countLabel = NSTextField(labelWithString: "0 条记录")
+    var shortcutName = "⌥V" { didSet { if search.stringValue.isEmpty { emptySubtitle.stringValue = "先用 ⌘C 复制，再用 \(shortcutName) 找回。" } } }
     private let emptyTitle = NSTextField(labelWithString: "你的下一次复制，会出现在这里")
     private let emptySubtitle = NSTextField(labelWithString: "先用 ⌘C 复制，再用 ⌥V 找回。")
     private let permissionRow = NSStackView()
@@ -302,7 +303,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         let isEmpty = filteredEntries.isEmpty
         emptyTitle.superview?.isHidden = !isEmpty
         emptyTitle.stringValue = query.isEmpty ? "你的下一次复制，会出现在这里" : "没有找到匹配的记录"
-        emptySubtitle.stringValue = query.isEmpty ? "先用 ⌘C 复制，再用 ⌥V 找回。" : "试试其他关键词，或清空搜索。"
+        emptySubtitle.stringValue = query.isEmpty ? "先用 ⌘C 复制，再用 \(shortcutName) 找回。" : "试试其他关键词，或清空搜索。"
         if !isEmpty {
             let row = previousID.flatMap { id in filteredEntries.firstIndex { $0.id == id } }
                 ?? (keepingSelection ? max(0, min(previousRow, filteredEntries.count - 1)) : 0)
