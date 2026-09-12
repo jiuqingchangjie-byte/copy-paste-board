@@ -20,7 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var history = History()
     private var settings = AppSettings()
     private var maxCount: Int { settings.maxHistoryCount }
-    private let dataStore = AppDataStore(applicationURL: Bundle.main.bundleURL)
+    private var dataStore = AppDataStore(applicationURL: Bundle.main.bundleURL)
+    private let storageLocation = StorageLocation(applicationURL: Bundle.main.bundleURL)
+    private let storagePreferences = StoragePreferencesController()
+    private let favorites = FavoritesCoordinator()
+    private var relocatingStorage = false
     private var storage: HistoryStorage { dataStore.history }
     private var storageReady = false
     private let storageQueue = DispatchQueue(label: "ClipboardBoard.storage", qos: .utility)
@@ -52,6 +56,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let origin = settings.panelOrigin.map { NSPoint(x: $0[0], y: $0[1]) }
         panel = HistoryPanelController(origin: origin)
         panel.previewSettings = settings.preview
+        favorites.onCopy = { [weak self] entry in
+            self?.previewCopy.copy(entry.payload, sourceName: "收藏库") == true
+        }
+        favorites.onMessage = { [weak self] in self?.panel.showMessage($0) }
+        favorites.onChanged = { [weak self] in
+            guard let self else { return }
+            self.panel.update(entries:self.history.entries,paused:self.monitor.isPaused)
+        }
+        favorites.open(store:dataStore,available:storageReady)
+        panel.onOpenFavorites = { [weak self] in self?.openFavorites() }
+        panel.isFavorite = { [weak self] in self?.favorites.isFavorite($0) == true }
+        panel.onFavorite = { [weak self] entry in
+            guard let self else { return }
+            guard !self.relocatingStorage else { self.panel.showMessage("正在迁移存储，请稍后收藏。");return }
+            self.favorites.toggle(entry)
+        }
+        storagePreferences.onMove = { [weak self] destination, completion in
+            self?.relocateStorage(to:destination,completion:completion)
+        }
         previewCopy.onCopied = { [weak self] entry in
             guard let self else { return }
             if self.history.insert(entry) { self.historyChanged() }
@@ -137,19 +160,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
         // Finish pending atomic saves before quitting, including a pending clear.
         storageQueue.sync {}
+        favorites.shutdown()
+        if storageReady, let store = try? storageLocation.resolve() {
+            try? store.history.save(history.entries)
+            try? store.saveSettings(settings)
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Re-activation must not rebuild an already open list or steal focus
+        // from a preview/sheet; that would invalidate selection and controls.
+        if let modal = NSApp.modalWindow { modal.makeKeyAndOrderFront(nil); return false }
+        if let current = NSApp.keyWindow, current.isVisible { current.makeKeyAndOrderFront(nil); return false }
         if shortcutPreferences.isVisible {
             shortcutPreferences.window?.makeKeyAndOrderFront(nil)
             return false
         }
+        if storagePreferences.isVisible { storagePreferences.window?.makeKeyAndOrderFront(nil);return false }
+        if favorites.library.isVisible { favorites.library.window?.makeKeyAndOrderFront(nil);return false }
+        if panel.isVisible { panel.window?.makeKeyAndOrderFront(nil);return false }
         showPanel()
         return false
     }
 
     private func historyChanged() {
         panel.update(entries: history.entries, paused: monitor.isPaused)
+        if relocatingStorage { panel.showMessage("迁移期间新复制暂存于内存，完成后保存。");return }
         guard storageReady else {
             panel.showMessage("记录暂存于本次运行。打开“数据与恢复”可重试保存。")
             return
@@ -177,6 +213,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func loadStoredData() {
         storageReady = false
+        do {
+            dataStore = AppDataStore(directoryURL:try storageLocation.selectedDirectory())
+            _ = try storageLocation.resolve()
+        } catch { saveError = error.localizedDescription;return }
         let legacyLimit = UserDefaults.standard.integer(forKey: "maxHistoryCount")
         let legacySettings = AppSettings(
             maxHistoryCount: legacyLimit > 0 ? legacyLimit : 10,
@@ -185,7 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let legacyURL = support.appendingPathComponent("ClipboardBoard/history.json")
         do {
-            try dataStore.migrateLegacyIfNeeded(historyURL: legacyURL, settings: legacySettings)
+            if !storageLocation.isCustom { try dataStore.migrateLegacyIfNeeded(historyURL: legacyURL, settings: legacySettings) }
             settings = try dataStore.loadSettings()
             let storedEntries = try storage.load()
             history = History(entries: storedEntries, maxCount: maxCount)
@@ -200,7 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             // Reading the old file is safe; never overwrite it after a failed migration.
             settings = (try? dataStore.loadSettings()) ?? legacySettings
-            let source = FileManager.default.fileExists(atPath: storage.fileURL.path)
+            let source = storageLocation.isCustom || FileManager.default.fileExists(atPath: storage.fileURL.path)
                 ? storage : HistoryStorage(fileURL: legacyURL)
             history = History(entries: (try? source.load()) ?? [], maxCount: maxCount)
             if error is DataFormatError {
@@ -242,13 +282,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             saveError = nil
             panel.update(entries: history.entries, paused: monitor.isPaused)
             panel.showMessage("已保存，可以继续使用。")
+            favorites.open(store:dataStore,available:true)
         } catch {
             saveError = "暂时无法保存，记录仍在本次运行中。请确认磁盘空间和目录写入权限后重试。"
         }
     }
 
     private func saveSettings(_ next: AppSettings) throws {
-        guard storageReady else {
+        guard storageReady, !relocatingStorage else {
             throw NSError(domain: "ClipboardBoard.Storage", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "数据目录不可用，请将应用放在可写目录后重启。"])
         }
@@ -349,6 +390,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return item
         }
         _ = item("打开历史记录    \(shortcutName)", #selector(togglePanel))
+        _ = item("打开收藏库", #selector(openFavorites))
+        _ = item("存储位置…", #selector(openStoragePreferences))
         _ = item("自定义快捷键…（\(shortcutName)）", #selector(configureShortcut))
         _ = item("历史记录上限：\(maxCount) 条…", #selector(configureLimit))
         _ = item("完整预览选项…", #selector(configurePreview))
@@ -399,6 +442,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "关闭")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
+    }
+
+    @objc private func openFavorites() {
+        panel.dismiss()
+        favorites.present()
+    }
+
+    @objc private func openStoragePreferences() {
+        panel.dismiss()
+        storagePreferences.present(directory:dataStore.directoryURL)
+    }
+
+    private func relocateStorage(to destination: URL, completion: @escaping (Result<URL,Error>) -> Void) {
+        guard !favorites.library.isMutating else { completion(.failure(LocalStorageError("收藏正在保存，请完成后再迁移。")));return }
+        guard storageReady, !storageBusy, let repository = favorites.repository else {
+            completion(.failure(LocalStorageError("当前数据尚未正常保存，请先通过“数据与恢复”恢复原位置。")));return
+        }
+        storageBusy = true;relocatingStorage = true
+        favorites.suspend()
+        let source = dataStore, location = storageLocation
+        storageQueue.async { [weak self] in
+            repository.close()
+            let result = Result { try StorageRelocator.migrate(source:source,to:destination,location:location) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.storageBusy = false;self.relocatingStorage = false
+                switch result {
+                case .success(let store): self.dataStore = store
+                case .failure: self.dataStore = source
+                }
+                self.favorites.open(store:self.dataStore,available:true)
+                self.historyChanged() // Persist copies collected while migration was in flight.
+                completion(result.map { $0.directoryURL })
+            }
+        }
     }
 
     @objc private func openDataDirectory() {

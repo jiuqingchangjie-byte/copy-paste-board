@@ -24,6 +24,9 @@ final class ClipRowView: NSTableRowView {
 }
 
 final class ClipCellView: NSTableCellView {
+    private let favoriteButton = NSButton()
+    private var favoriteAction: (() -> Void)?
+    private var rowTrailing: NSLayoutConstraint!
     private let preview = NSImageView()
     private let title = NSTextField(wrappingLabelWithString: "")
     private let detail = NSTextField(labelWithString: "")
@@ -47,19 +50,34 @@ final class ClipCellView: NSTableCellView {
         row.alignment = .leading
         row.translatesAutoresizingMaskIntoConstraints = false
         addSubview(row)
+        rowTrailing = row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12)
         NSLayoutConstraint.activate([
             preview.widthAnchor.constraint(equalTo: row.widthAnchor),
             preview.heightAnchor.constraint(equalToConstant: 84),
             row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            rowTrailing,
             row.centerYAnchor.constraint(equalTo: centerYAnchor),
             title.widthAnchor.constraint(equalTo: row.widthAnchor),
             detail.widthAnchor.constraint(equalTo: row.widthAnchor)
         ])
         textField = title
+        favoriteButton.isBordered = false;favoriteButton.isHidden = true
+        favoriteButton.target = self;favoriteButton.action = #selector(toggleFavorite)
+        favoriteButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(favoriteButton)
+        NSLayoutConstraint.activate([favoriteButton.trailingAnchor.constraint(equalTo: trailingAnchor,constant:-8),favoriteButton.topAnchor.constraint(equalTo:topAnchor,constant:10),favoriteButton.widthAnchor.constraint(equalToConstant:22),favoriteButton.heightAnchor.constraint(equalToConstant:22)])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configureFavorite(_ saved: Bool, action: @escaping () -> Void) {
+        favoriteAction = action;favoriteButton.isHidden = false;rowTrailing.constant = -38
+        favoriteButton.image = NSImage(systemSymbolName: saved ? "star.fill" : "star",accessibilityDescription:nil)
+        favoriteButton.contentTintColor = saved ? .systemOrange : .secondaryLabelColor
+        favoriteButton.setAccessibilityLabel(saved ? "取消收藏此条内容" : "收藏此条内容")
+        favoriteButton.toolTip = saved ? "取消收藏" : "收藏到未分类"
+    }
+    @objc private func toggleFavorite() { favoriteAction?() }
 
     func configure(_ entry: HistoryEntry) {
         var kind: String

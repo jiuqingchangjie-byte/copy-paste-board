@@ -6,3 +6,5 @@ ClipboardBoardData/
 .codesign/
 __pycache__/
 *.py[cod]
+
+ClipboardBoardConfig/

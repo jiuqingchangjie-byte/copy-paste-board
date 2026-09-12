@@ -43,6 +43,8 @@ public struct AppDataStore {
         directoryURL = installDirectory.appendingPathComponent("ClipboardBoardData", isDirectory: true)
     }
 
+    public init(directoryURL: URL) { self.directoryURL = directoryURL.standardizedFileURL }
+
     public func loadSettings() throws -> AppSettings {
         guard FileManager.default.fileExists(atPath: settingsURL.path) else { return AppSettings() }
         return try JSONDecoder().decode(AppSettings.self, from: Data(contentsOf: settingsURL))

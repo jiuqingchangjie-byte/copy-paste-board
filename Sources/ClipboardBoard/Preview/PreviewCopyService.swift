@@ -10,11 +10,15 @@ final class PreviewCopyService {
 
     @discardableResult
     func copy(_ text: String) -> Bool {
-        let payload = ClipPayload.text(text)
+        copy(.text(text), sourceName: "剪贴板预览")
+    }
+
+    @discardableResult
+    func copy(_ payload: ClipPayload, sourceName: String) -> Bool {
         guard payload.isValid, payload.byteCount <= 8 * 1024 * 1024 else { return false }
         monitor.poll()
         guard monitor.write(payload) else { return false }
-        onCopied?(HistoryEntry(payload: payload, sourceName: "剪贴板预览"))
+        onCopied?(HistoryEntry(payload: payload, sourceName: sourceName))
         return true
     }
 }

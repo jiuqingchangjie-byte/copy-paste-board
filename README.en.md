@@ -4,17 +4,20 @@
 
 A native macOS menu bar clipboard history app. Press **⌥ Option + V** to find recently copied text, images, and files, select an entry with the arrow keys, and press Return to paste into the original application.
 
-Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.4.0**. The application UI is currently in Chinese.
+Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.5.0**. The application UI is currently in Chinese.
 
 ## Download the app
 
-[Download v1.4.0 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.4.0/ClipboardBoard-v1.4.0-macos-arm64.zip)
+[Download v1.5.0 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.5.0/ClipboardBoard-v1.5.0-macos-arm64.zip)
 
 Extract the ZIP, move `ClipboardBoard.app` to `Applications` inside your home folder (`~/Applications`), and open it. No source build, Xcode, signing tools, or Apple Developer membership is needed. Bilingual installation instructions are included.
 
-The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.4.0)
+The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.5.0)
 
 ## Features
+
+- **Independent favorites:** save from history stars, organize folders, search, move/remove multiple selections, or clear a folder/library. Favorites do not consume history capacity and have no 50-item count limit. [Design and acceptance](docs/FAVORITES_AND_STORAGE.md).
+- **Configurable storage:** migrate history, favorites, and settings to a chosen directory; verify before switching and retain the old copy. Restart restores committed data.
 
 - **JSON formatting:** format JSON in full-text previews and restore the exact original. Preserve number precision, duplicate keys, order, and escapes. Viewing never changes the clipboard or history. [Acceptance](docs/JSON_PREVIEW.md).
 - **Full previews:** hover for one second (configurable from 0.2 to 5 seconds), scroll complete text, and explicitly copy a selection into history. View original images, zoom, pin above other windows, and drag their header. Search spaces remain text input; Esc restores the original history selection. [Behavior and acceptance](docs/PREVIEW.md).
@@ -23,7 +26,7 @@ The app uses a stable self-signed certificate and **is not notarized by Apple**.
 - **Keyboard workflow:** global shortcut, arrow-key selection, Return to paste, and Esc to dismiss; double-click also works.
 - **Search and deduplication:** search content, file paths, or source application names; repeated content moves to the top.
 - **Configurable history:** keep the latest 10 entries by default, adjustable from 1 to 50; the oldest entries are evicted.
-- **Local persistence:** restore history and settings from `ClipboardBoardData` beside the app.
+- **Local persistence:** restore history and favorites from the default adjacent `ClipboardBoardData` folder or a configured location.
 - **Window and startup controls:** drag the header to save the panel position; enable launch at login with system approval status.
 - **Paste safeguards:** wait for key release and attempt to restore the original window and input focus; cancel pending work when permissions, application focus, or clipboard contents change.
 - **Diagnostics:** inspect paste permissions, the target application, and the latest result without reading input-field text.
@@ -131,12 +134,15 @@ Use the packaged `.app` from a stable location writable by the current user. Run
 
 ## Data and privacy
 
+Custom storage is recorded in `ClipboardBoardConfig/storage-location.json` beside the app. Preserve this folder during updates and moves. Missing custom storage produces an error rather than an empty fallback. External cloud/network software may sync selected folders; the app itself does not initiate networking. Favorites use SQLite transactions and full synchronization; JSON files are flushed before atomic replacement. Copies not yet captured or flushed cannot be guaranteed after a crash.
+
 ```text
 Installation directory/
 ├── ClipboardBoard.app
 └── ClipboardBoardData/
     ├── history.json
-    └── settings.json
+    ├── settings.json
+    └── favorites.sqlite
 ```
 
 - History stores full text, image data, and file URLs. Referenced files themselves are not copied into history.
@@ -158,7 +164,7 @@ Installation directory/
 - The global shortcut defaults to **⌥V** and can be customized. System shortcuts and exclusive registrations are checked; app-local shortcuts and nonexclusive listeners cannot all be enumerated. The menu bar remains available.
 - File references may stop working if the original files are moved or deleted.
 - History uses a single JSON file rewritten on each change. Large image histories can increase disk usage, memory consumption, and startup cost.
-- Favorites, cross-device sync, and automatic updates are not implemented. Pinned image windows are session-only viewers, not persistent favorites.
+- Cross-device sync and automatic updates are not implemented. Pinned image windows are session-only viewers; save to favorites for long-term retention.
 
 ## Development and verification
 
@@ -173,7 +179,7 @@ swift build -c release
 python3 -m unittest discover -s Tests/Scripts -p 'test_*.py'
 ```
 
-The current baseline contains **117 Swift tests and 8 build/install workflow tests**. Tests use sample data and isolated pasteboards. Paste environments are mocked and do not send keystrokes to user applications.
+The current baseline contains **127 Swift tests and 8 build/install workflow tests**. Tests use sample data and isolated pasteboards. Paste environments are mocked and do not send keystrokes to user applications.
 
 Optionally render AppKit light / dark layout previews:
 
@@ -192,7 +198,7 @@ This script modifies and re-signs a temporary copy without replacing the origina
 Before each live acceptance run, verify the process against the intended build, specifying its installed location when necessary:
 
 ```bash
-./scripts/verify-running.sh 1.4.0 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.5.0 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 The check compares the running path, version, build ID, executable hash, and signature with the current `dist` build. Even an older build with the same version number is rejected.

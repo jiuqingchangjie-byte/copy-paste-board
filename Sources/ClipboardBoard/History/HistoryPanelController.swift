@@ -23,6 +23,9 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     private var localMonitor: Any?
     private var isShowingMenu = false
     private var draggedOrigin: NSPoint?
+    var onOpenFavorites: (() -> Void)?
+    var onFavorite: ((HistoryEntry) -> Void)?
+    var isFavorite: ((HistoryEntry) -> Bool)?
     var onPaste: ((HistoryEntry) -> Void)?
     var onDeleteEntry: ((UUID) -> Void)?
     var onPermission: (() -> Void)?
@@ -93,7 +96,10 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         menuButton.bezelStyle = .inline
         menuButton.isBordered = false
         menuButton.setAccessibilityLabel("更多选项")
-        let headerContent = NSStackView(views: [icon, titleColumn, NSView(), clearButton, menuButton])
+        let favoritesButton = NSButton(title: "收藏", image: NSImage(systemSymbolName: "star", accessibilityDescription: nil)!, target: self, action: #selector(openFavorites))
+        favoritesButton.isBordered = false
+        favoritesButton.setAccessibilityLabel("打开收藏库")
+        let headerContent = NSStackView(views: [icon, titleColumn, NSView(), favoritesButton, clearButton, menuButton])
         headerContent.spacing = 10
         headerContent.alignment = .centerY
         let header = DraggableHeaderView()
@@ -183,7 +189,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         messageLabel.isHidden = true
         footerLabel.font = .systemFont(ofSize: 11)
         footerLabel.textColor = .secondaryLabelColor
-        let localLabel = NSTextField(labelWithString: "仅存于本机")
+        let localLabel = NSTextField(labelWithString: "存于数据目录")
         localLabel.font = .systemFont(ofSize: 10)
         localLabel.textColor = .tertiaryLabelColor
         let footer = NSStackView(views: [footerLabel, NSView(), localLabel])
@@ -345,6 +351,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         onPaste?(filteredEntries[row])
     }
     @objc private func requestPermission() { onPermission?() }
+    @objc private func openFavorites() { onOpenFavorites?() }
     @objc private func clearHistory() { onClear?() }
     @objc private func showMenu(_ sender: NSButton) {
         previews.hover.cancel()
@@ -431,7 +438,17 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         let item = menu.addItem(withTitle: title, action: #selector(previewFromMenu(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = entry.id
+        if onFavorite != nil {
+            menu.addItem(.separator())
+            let favorite = menu.addItem(withTitle: isFavorite?(entry) == true ? "取消收藏" : "收藏到未分类", action: #selector(toggleFavoriteFromMenu(_:)), keyEquivalent: "")
+            favorite.target = self;favorite.representedObject = entry.id
+        }
         return menu
+    }
+
+    @objc private func toggleFavoriteFromMenu(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID, let entry = filteredEntries.first(where: { $0.id == id }) else { return }
+        onFavorite?(entry)
     }
 
     @objc private func previewFromMenu(_ sender: NSMenuItem) {
@@ -457,6 +474,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         let entry = filteredEntries[row]
         let cell = ClipCellView()
         cell.configure(entry)
+        if onFavorite != nil { cell.configureFavorite(isFavorite?(entry) == true) { [weak self] in self?.onFavorite?(entry) } }
         return cell
     }
 }

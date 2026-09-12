@@ -4,6 +4,13 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.5.0
+
+- 新增独立收藏库：星标入口、目录、分页搜索、多选移动/取消收藏、范围清空；收藏不占普通历史额度，没有 50 条上限。
+- 新增可配置数据目录：迁移历史、收藏和设置，校验后切换、旧副本保留；改进原子写入与收藏事务的耐久性。
+- Add independent unlimited-count favorites with folders, paged search, bulk actions, and explicit copy/preview. Add verified storage relocation and durable persistence without affecting ordinary history limits.
+- 127 项 Swift 测试、8 项流程测试通过；实际迁移及强制退出恢复证据见 [产品方案与验收](docs/FAVORITES_AND_STORAGE.md)。
+
 ## 1.4.0
 
 - 新增自定义全局快捷键：主动录制、系统/排他注册冲突检查、保存失败保留旧组合、恢复默认和重启恢复。菜单与历史提示显示当前组合。

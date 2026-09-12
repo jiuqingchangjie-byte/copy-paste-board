@@ -130,18 +130,3 @@ private struct HistoryDocument: Codable {
         entries = try values.decode([HistoryEntry].self, forKey: .entries)
     }
 }
-
-enum PrivateDataFile {
-    static func prepareDirectory(_ directory: URL) throws {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
-                                                attributes: [.posixPermissions: 0o700])
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
-    }
-
-    static func write(_ data: Data, to fileURL: URL) throws {
-        let directory = fileURL.deletingLastPathComponent()
-        try prepareDirectory(directory)
-        try data.write(to: fileURL, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
-    }
-}
