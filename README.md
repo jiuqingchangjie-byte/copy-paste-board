@@ -4,18 +4,19 @@
 
 一个原生 macOS 菜单栏剪贴板历史工具。按 **⌥ Option + V** 找回最近复制的文字、图片和文件，使用方向键选择，再按回车粘贴到原应用。
 
-采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.3.0**，应用界面目前为中文。
+采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.3.1**，应用界面目前为中文。
 
 ## 直接下载安装
 
-[下载 v1.3.0 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.3.0/ClipboardBoard-v1.3.0-macos-arm64.zip)
+[下载 v1.3.1 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.3.1/ClipboardBoard-v1.3.1-macos-arm64.zip)
 
 解压后将 `ClipboardBoard.app` 放入个人主目录下的 `Applications` 文件夹（`~/Applications`），再打开。不需要源码、Xcode、签名工具或 Apple 开发者会员。包内附有中英文安装说明。
 
-应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.3.0)
+应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.3.1)
 
 ## 功能
 
+- **JSON 格式化**：完整文本预览内一键格式化、查看原文；保持长数字精度，失败时显示原因，查看不改剪贴板和历史。[使用与验收](docs/JSON_PREVIEW.md)。
 - **完整预览**：默认悬浮 1 秒查看全文，可滚动、选择片段复制；原图支持缩放和独立置顶拖动。延时与开关可在“完整预览选项”配置。[使用与验收](docs/PREVIEW.md)。
 - **内容记录**：纯文本、PNG/TIFF 图片和 Finder 本地文件引用。
 - **键盘操作**：全局快捷键呼出、方向键选择、回车粘贴、Esc 关闭；也支持双击使用。
@@ -174,7 +175,7 @@ swift build -c release
 python3 -m unittest discover -s Tests/Scripts -p 'test_*.py'
 ```
 
-当前基线包含 **93 项 Swift 测试和 8 项构建与安装流程测试**。测试使用样例数据和独立剪贴板；粘贴环境采用模拟实现，不向用户应用发送按键。
+当前基线包含 **105 项 Swift 测试和 8 项构建与安装流程测试**。测试使用样例数据和独立剪贴板；粘贴环境采用模拟实现，不向用户应用发送按键。
 
 可选生成 AppKit 浅色 / 深色布局预览：
 
@@ -193,7 +194,7 @@ CLIPBOARD_PREVIEW_DIR="$PWD/.build/previews" ./scripts/test.sh
 每轮实机验收先核对进程与本轮构建，安装位置不是 `dist` 时显式传入路径：
 
 ```bash
-./scripts/verify-running.sh 1.3.0 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.3.1 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 脚本会比较运行路径、版本、构建编号、可执行文件哈希和签名，并与本轮 `dist` 构建对照；同版本旧构建也会被拒绝。

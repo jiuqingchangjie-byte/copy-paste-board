@@ -1,34 +1,16 @@
 import AppKit
 
-/// Read-only text with normal selection and a single explicit copy command.
-final class PreviewTextView: NSTextView {
-    var onCopyText: ((String) -> Bool)?
-
-    override func copy(_ sender: Any?) {
-        let range = selectedRange()
-        guard range.length > 0, NSMaxRange(range) <= (string as NSString).length else { return }
-        _ = onCopyText?((string as NSString).substring(with: range))
-    }
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let menu = NSMenu()
-        let copy = menu.addItem(withTitle: "复制选中文本", action: #selector(copy(_:)), keyEquivalent: "")
-        copy.target = self
-        let select = menu.addItem(withTitle: "全选", action: #selector(selectAll(_:)), keyEquivalent: "")
-        select.target = self
-        return menu
-    }
-}
-
 final class TextPreviewViewController: NSViewController {
     let textView = PreviewTextView()
     let scrollView = NSScrollView()
-    private let status = NSTextField(labelWithString: "选取文字后按 ⌘C，可复制到历史记录")
+    let formatting: JSONPreviewFormattingController?
+    private let status = NSTextField(wrappingLabelWithString: "选取文字后按 ⌘C，可复制到历史记录")
     var onCopyText: ((String) -> Bool)?
     private let text: String
 
-    init(text: String) {
+    init(text: String, allowsJSONFormatting: Bool = true) {
         self.text = text
+        formatting = allowsJSONFormatting ? JSONPreviewFormattingController(original: text) : nil
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -53,11 +35,12 @@ final class TextPreviewViewController: NSViewController {
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: 450, height: CGFloat.greatestFiniteMagnitude)
-        textView.string = text // Never truncate, normalize line endings, or parse markup.
+        textView.string = text
         textView.setAccessibilityLabel("完整内容，可选择部分文字复制")
         textView.onCopyText = { [weak self] text in
             let success = self?.onCopyText?(text) == true
             self?.status.stringValue = success ? "已复制选中文本并加入历史" : "复制失败，原内容仍保留"
+            self?.status.textColor = success ? .secondaryLabelColor : .systemRed
             return success
         }
         scrollView.documentView = textView
@@ -65,20 +48,39 @@ final class TextPreviewViewController: NSViewController {
         copyButton.bezelStyle = .rounded
         status.font = .systemFont(ofSize: 11)
         status.textColor = .secondaryLabelColor
-        let footer = NSStackView(views: [status, NSView(), copyButton])
-        footer.spacing = 8
-        let stack = NSStackView(views: [scrollView, footer])
+        status.maximumNumberOfLines = 3
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        var buttons: [NSView] = []
+        if let formatting {
+            buttons = [formatting.formatButton, formatting.originalButton]
+            formatting.onDisplayText = { [weak self] text in self?.displayText(text) }
+            formatting.onStatus = { [weak self] message, isError in
+                self?.status.stringValue = message
+                self?.status.textColor = isError ? .systemRed : .secondaryLabelColor
+            }
+        }
+        let toolbar = NSStackView(views: buttons + [NSView(), copyButton])
+        toolbar.spacing = 8
+        let stack = NSStackView(views: [toolbar, scrollView, status])
         stack.orientation = .vertical
         stack.alignment = .width
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
         NSLayoutConstraint.activate([
+            scrollView.widthAnchor.constraint(equalTo: view.widthAnchor),
+            scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 80),
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             stack.topAnchor.constraint(equalTo: view.topAnchor),
             stack.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+    }
+
+    private func displayText(_ text: String) {
+        textView.string = text
+        textView.setSelectedRange(NSRange(location: 0, length: 0))
+        textView.scrollRangeToVisible(NSRange(location: 0, length: 0))
     }
 
     override func viewDidLayout() {

@@ -4,6 +4,12 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.3.1
+
+- 完整文本预览新增“JSON 格式化”和“查看原文”，只调整展示，不改剪贴板或历史。保持数字精度、重复键、顺序及转义；后台处理，失败提示行列并保留原文。
+- Add JSON formatting and exact original-text restoration to full previews. Preserve numeric lexemes, duplicate keys, order, and escapes; format in the background and report errors without clipboard/history writes.
+- 105 项 Swift 测试、8 项流程测试通过；完整采集与界面链路已实测，见 [JSON 格式化验收](docs/JSON_PREVIEW.md)。
+
 ## 1.3.0
 
 - 新增可配置悬浮全文预览、选区复制入历史、图片原图缩放和独立置顶拖动；Esc 恢复原选择，搜索空格和预览回车不误触粘贴。

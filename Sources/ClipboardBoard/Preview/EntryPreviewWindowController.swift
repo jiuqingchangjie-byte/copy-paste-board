@@ -25,7 +25,8 @@ final class EntryPreviewWindowController: NSWindowController, NSWindowDelegate {
             contentController = content
             title = "完整文本"
         case .files(let urls):
-            let content = TextPreviewViewController(text: urls.compactMap { URL(string: $0)?.path }.joined(separator: "\n"))
+            let content = TextPreviewViewController(text: urls.compactMap { URL(string: $0)?.path }.joined(separator: "\n"),
+                                                    allowsJSONFormatting: false)
             content.onCopyText = onCopyText
             contentController = content
             title = "完整文件路径"
