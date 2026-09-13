@@ -18,18 +18,18 @@ final class EntryPreviewWindowController: NSWindowController, NSWindowDelegate {
         case .image(let data):
             guard let image = ImagePreviewViewController(data: data) else { return nil }
             contentController = image
-            title = "查看原图"
+            title = L10n.tr("查看原图")
         case .text(let text):
             let content = TextPreviewViewController(text: text)
             content.onCopyText = onCopyText
             contentController = content
-            title = "完整文本"
+            title = L10n.tr("完整文本")
         case .files(let urls):
             let content = TextPreviewViewController(text: urls.compactMap { URL(string: $0)?.path }.joined(separator: "\n"),
                                                     allowsJSONFormatting: false)
             content.onCopyText = onCopyText
             contentController = content
-            title = "完整文件路径"
+            title = L10n.tr("完整文件路径")
         }
         let panel = PreviewPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
             styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -45,19 +45,19 @@ final class EntryPreviewWindowController: NSWindowController, NSWindowDelegate {
         panel.delegate = self
         panel.onEscape = { [weak self] in self?.requestClose() }
         let root = NSView()
-        let hint = NSTextField(labelWithString: "esc 关闭预览并返回原选择")
+        let hint = NSTextField(labelWithString: L10n.tr("esc 关闭预览并返回原选择"))
         hint.font = .systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
         let header = NSStackView(views: [hint, NSView()])
         if case .image = entry.payload {
-            let pin = NSButton(title: "置顶固定", target: self, action: #selector(togglePin))
+            let pin = NSButton(title: L10n.tr("置顶固定"), target: self, action: #selector(togglePin))
             pin.bezelStyle = .rounded
-            pin.setAccessibilityLabel("置顶固定图片")
+            pin.setAccessibilityLabel(L10n.tr("置顶固定图片"))
             header.addArrangedSubview(pin)
             pinButton = pin
         }
         let dragHandle = DraggableHeaderView()
-        dragHandle.toolTip = "拖动这里移动预览"
+        dragHandle.toolTip = L10n.tr("拖动这里移动预览")
         header.translatesAutoresizingMaskIntoConstraints = false
         dragHandle.addSubview(header)
         NSLayoutConstraint.activate([
@@ -120,7 +120,7 @@ final class EntryPreviewWindowController: NSWindowController, NSWindowDelegate {
         if isPinned, let window { window.parent?.removeChildWindow(window) }
         // Unpinning keeps it as a normal independent viewer until closed.
         window?.level = isPinned ? .floating : .normal
-        pinButton?.title = isPinned ? "取消置顶" : "置顶固定"
+        pinButton?.title = isPinned ? L10n.tr("取消置顶") : L10n.tr("置顶固定")
         pinButton?.state = isPinned ? .on : .off
         onPinChanged?(isPinned)
     }

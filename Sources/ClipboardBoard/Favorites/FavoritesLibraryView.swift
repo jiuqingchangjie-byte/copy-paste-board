@@ -1,3 +1,4 @@
+import ClipboardCore
 import AppKit
 
 final class FavoritesListTable: NSTableView {
@@ -18,18 +19,18 @@ final class FavoritesLibraryView: NSView {
     let folders = NSTableView()
     let entries = FavoritesListTable()
     let search = NSSearchField()
-    let heading = NSTextField(labelWithString: "全部收藏")
-    let status = NSTextField(wrappingLabelWithString: "收藏独立保存，不占普通历史额度")
+    let heading = NSTextField(labelWithString: L10n.tr("全部收藏"))
+    let status = NSTextField(wrappingLabelWithString: L10n.tr("收藏独立保存，不占普通历史额度"))
     let pageLabel = NSTextField(labelWithString: "")
-    let newFolder = NSButton(title: "新建文件夹", target: nil, action: nil)
-    let folderMenu = NSButton(title: "目录管理…", target: nil, action: nil)
-    let preview = NSButton(title: "查看完整内容", target: nil, action: nil)
-    let copy = NSButton(title: "复制内容", target: nil, action: nil)
-    let move = NSButton(title: "移动到…", target: nil, action: nil)
-    let remove = NSButton(title: "取消收藏", target: nil, action: nil)
-    let clear = NSButton(title: "清空收藏库…", target: nil, action: nil)
-    let previous = NSButton(title: "上一页", target: nil, action: nil)
-    let next = NSButton(title: "下一页", target: nil, action: nil)
+    let newFolder = NSButton(title: L10n.tr("新建文件夹"), target: nil, action: nil)
+    let folderMenu = NSButton(title: L10n.tr("目录管理…"), target: nil, action: nil)
+    let preview = NSButton(title: L10n.tr("查看完整内容"), target: nil, action: nil)
+    let copy = NSButton(title: L10n.tr("复制内容"), target: nil, action: nil)
+    let move = NSButton(title: L10n.tr("移动到…"), target: nil, action: nil)
+    let remove = NSButton(title: L10n.tr("取消收藏"), target: nil, action: nil)
+    let clear = NSButton(title: L10n.tr("清空收藏库…"), target: nil, action: nil)
+    let previous = NSButton(title: L10n.tr("上一页"), target: nil, action: nil)
+    let next = NSButton(title: L10n.tr("下一页"), target: nil, action: nil)
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -39,19 +40,19 @@ final class FavoritesLibraryView: NSView {
         folders.rowHeight = 34
         folders.style = .sourceList
         folders.allowsEmptySelection = false
-        folders.setAccessibilityLabel("收藏文件夹")
+        folders.setAccessibilityLabel(L10n.tr("收藏文件夹"))
         let folderScroll = NSScrollView()
         folderScroll.documentView = folders
         folderScroll.hasVerticalScroller = true
-        let sidebarHeading = NSTextField(labelWithString: "收藏库")
+        let sidebarHeading = NSTextField(labelWithString: L10n.tr("收藏库"))
         sidebarHeading.alignment = .left
         let sidebar = NSStackView(views: [sidebarHeading,folderScroll,newFolder,folderMenu])
         sidebar.orientation = .vertical
         sidebar.alignment = .width
         sidebar.spacing = 10
-        sidebar.widthAnchor.constraint(equalToConstant: 185).isActive = true
+        sidebar.widthAnchor.constraint(equalToConstant: 240).isActive = true
         [sidebarHeading,folderScroll,newFolder,folderMenu].forEach { $0.widthAnchor.constraint(equalTo:sidebar.widthAnchor).isActive = true }
-        for (id,title,width) in [("title","内容",330.0),("kind","类型",60.0),("source","来源",110.0)] {
+        for (id,title,width) in [("title",L10n.tr("内容"),330.0),("kind",L10n.tr("类型"),60.0),("source",L10n.tr("来源"),110.0)] {
             let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width
             entries.addTableColumn(column)
         }
@@ -60,15 +61,17 @@ final class FavoritesLibraryView: NSView {
         entries.allowsMultipleSelection = true
         entries.allowsEmptySelection = true
         entries.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-        entries.setAccessibilityLabel("收藏内容，支持 Command 或 Shift 多选")
+        entries.setAccessibilityLabel(L10n.tr("收藏内容，支持 Command 或 Shift 多选"))
         let list = NSScrollView()
         list.documentView = entries
         list.hasVerticalScroller = true
         list.hasHorizontalScroller = true
         list.borderType = .bezelBorder
-        search.placeholderString = "搜索当前目录的内容或来源"
+        search.placeholderString = L10n.tr("搜索当前目录的内容或来源")
         search.sendsSearchStringImmediately = true
-        search.setAccessibilityLabel("搜索收藏")
+        search.setAccessibilityLabel(L10n.tr("搜索收藏"))
+        (search.cell as? NSSearchFieldCell)?.searchButtonCell?.setAccessibilityLabel(L10n.tr("搜索"))
+        (search.cell as? NSSearchFieldCell)?.cancelButtonCell?.setAccessibilityLabel(L10n.tr("取消"))
         heading.font = .systemFont(ofSize: 18, weight: .semibold)
         status.font = .systemFont(ofSize: 12)
         status.textColor = .secondaryLabelColor
@@ -91,7 +94,7 @@ final class FavoritesLibraryView: NSView {
         content.translatesAutoresizingMaskIntoConstraints = false
         addSubview(content)
         NSLayoutConstraint.activate([
-            main.widthAnchor.constraint(equalTo:content.widthAnchor,constant:-222),
+            main.widthAnchor.constraint(equalTo:content.widthAnchor,constant:-277),
             list.widthAnchor.constraint(equalTo:main.widthAnchor),
             status.widthAnchor.constraint(equalTo:main.widthAnchor),
             content.topAnchor.constraint(equalTo: topAnchor, constant: 20),

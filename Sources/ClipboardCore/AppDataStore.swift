@@ -7,17 +7,20 @@ public struct AppSettings: Codable, Equatable {
     public var hasLaunched: Bool
     public var shortcut: KeyboardShortcut
     public var preview: PreviewSettings
+    public var language: AppLanguage
 
     public init(maxHistoryCount: Int = 10, panelOrigin: [Double]? = nil, hasLaunched: Bool = false,
-                preview: PreviewSettings = PreviewSettings(), shortcut: KeyboardShortcut = .default) {
+                preview: PreviewSettings = PreviewSettings(), shortcut: KeyboardShortcut = .default,
+                language: AppLanguage = .preferred(from: Locale.preferredLanguages)) {
         self.maxHistoryCount = min(max(maxHistoryCount, 1), History.maximumCount)
         self.panelOrigin = panelOrigin.flatMap { $0.count == 2 && $0.allSatisfy(\.isFinite) ? $0 : nil }
         self.hasLaunched = hasLaunched
         self.preview = preview
         self.shortcut = shortcut.isValid ? shortcut : .default
+        self.language = language
     }
 
-    private enum CodingKeys: String, CodingKey { case schemaVersion, maxHistoryCount, panelOrigin, hasLaunched, preview, shortcut }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, maxHistoryCount, panelOrigin, hasLaunched, preview, shortcut, language }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -27,7 +30,10 @@ public struct AppSettings: Codable, Equatable {
                   panelOrigin: try values.decodeIfPresent([Double].self, forKey: .panelOrigin),
                   hasLaunched: try values.decodeIfPresent(Bool.self, forKey: .hasLaunched) ?? false,
                   preview: try values.decodeIfPresent(PreviewSettings.self, forKey: .preview) ?? PreviewSettings(),
-                  shortcut: try values.decodeIfPresent(KeyboardShortcut.self, forKey: .shortcut) ?? .default)
+                  shortcut: try values.decodeIfPresent(KeyboardShortcut.self, forKey: .shortcut) ?? .default,
+                  language: values.contains(.language)
+                    ? (AppLanguage(rawValue: (try? values.decode(String.self, forKey: .language)) ?? "") ?? .english)
+                    : .chinese)
     }
 }
 

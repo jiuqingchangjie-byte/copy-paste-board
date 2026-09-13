@@ -18,7 +18,7 @@ final class SQLiteDatabase {
     private var handle: OpaquePointer?
     init(url: URL) throws {
         let result = sqlite3_open_v2(url.path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil)
-        guard result == SQLITE_OK else { close(); throw LocalStorageError("无法打开收藏库，请检查存储位置和磁盘空间。") }
+        guard result == SQLITE_OK else { close(); throw LocalStorageError(L10n.tr("无法打开收藏库，请检查存储位置和磁盘空间。")) }
         sqlite3_busy_timeout(handle, 3000)
     }
     func close() { if let handle { sqlite3_close_v2(handle) }; handle = nil }
@@ -26,10 +26,10 @@ final class SQLiteDatabase {
 
     @discardableResult
     func run(_ sql: String, _ bindings: [SQLValue] = []) throws -> [[SQLValue]] {
-        guard let handle else { throw LocalStorageError("收藏库正在切换存储位置，请稍后重试。") }
+        guard let handle else { throw LocalStorageError(L10n.tr("收藏库正在切换存储位置，请稍后重试。")) }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
-            throw LocalStorageError("收藏库读取失败，原数据已保留。")
+            throw LocalStorageError(L10n.tr("收藏库读取失败，原数据已保留。"))
         }
         defer { sqlite3_finalize(statement) }
         let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
@@ -42,13 +42,13 @@ final class SQLiteDatabase {
             case .number(let value): result = sqlite3_bind_int64(statement, slot, value)
             case .null: result = sqlite3_bind_null(statement, slot)
             }
-            guard result == SQLITE_OK else { throw LocalStorageError("收藏内容无法写入。") }
+            guard result == SQLITE_OK else { throw LocalStorageError(L10n.tr("收藏内容无法写入。")) }
         }
         var rows: [[SQLValue]] = []
         while true {
             let result = sqlite3_step(statement)
             if result == SQLITE_DONE { return rows }
-            guard result == SQLITE_ROW else { throw LocalStorageError("收藏操作未完成（\(result)），请检查目录权限与磁盘空间。") }
+            guard result == SQLITE_ROW else { throw LocalStorageError(L10n.tr("收藏操作未完成（{0}），请检查目录权限与磁盘空间。", String(describing: result))) }
             rows.append((0..<sqlite3_column_count(statement)).map { column in
                 switch sqlite3_column_type(statement, column) {
                 case SQLITE_INTEGER: return .number(sqlite3_column_int64(statement, column))

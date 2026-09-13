@@ -10,7 +10,7 @@ public enum JSONTextFormatter {
 
     public static func format(_ text: String) throws -> String {
         guard text.utf8.count <= maximumInputBytes else {
-            throw JSONFormattingError(reason: "内容超过 8 MiB，无法格式化", line: 1, column: 1)
+            throw JSONFormattingError(reason: L10n.tr("内容超过 8 MiB，无法格式化"), line: 1, column: 1)
         }
         var parser = JSONWhitespaceParser(text)
         return try parser.format()
@@ -21,7 +21,7 @@ public struct JSONFormattingError: LocalizedError, Equatable {
     public let reason: String
     public let line: Int
     public let column: Int
-    public var errorDescription: String? { "第 \(line) 行，第 \(column) 列：\(reason)" }
+    public var errorDescription: String? { L10n.tr("第 {0} 行，第 {1} 列：{2}", String(describing: line), String(describing: column), String(describing: reason)) }
 }
 
 private struct JSONWhitespaceParser {
@@ -38,7 +38,7 @@ private struct JSONWhitespaceParser {
         skipWhitespace()
         try value(depth: 0)
         skipWhitespace()
-        guard index == bytes.count else { throw failure("JSON 结束后存在多余内容") }
+        guard index == bytes.count else { throw failure(L10n.tr("JSON 结束后存在多余内容")) }
         return String(decoding: output, as: UTF8.self)
     }
 
@@ -49,13 +49,13 @@ private struct JSONWhitespaceParser {
     }
 
     private mutating func append(_ byte: UInt8) throws {
-        guard output.count < JSONTextFormatter.maximumOutputBytes else { throw failure("格式化结果过大，请缩小内容后重试") }
+        guard output.count < JSONTextFormatter.maximumOutputBytes else { throw failure(L10n.tr("格式化结果过大，请缩小内容后重试")) }
         output.append(byte)
     }
 
     private mutating func appendToken(from start: Int) throws {
         guard index - start <= JSONTextFormatter.maximumOutputBytes - output.count else {
-            throw failure("格式化结果过大，请缩小内容后重试")
+            throw failure(L10n.tr("格式化结果过大，请缩小内容后重试"))
         }
         output.append(contentsOf: bytes[start..<index])
     }
@@ -67,7 +67,7 @@ private struct JSONWhitespaceParser {
 
     private mutating func value(depth: Int) throws {
         skipWhitespace()
-        guard let byte = current else { throw failure("此处需要 JSON 值") }
+        guard let byte = current else { throw failure(L10n.tr("此处需要 JSON 值")) }
         switch byte {
         case 123, 91: try container(depth: depth)
         case 34: try string()
@@ -75,12 +75,12 @@ private struct JSONWhitespaceParser {
         case 102: try literal("false")
         case 110: try literal("null")
         case 45, 48...57: try number()
-        default: throw failure("此处需要 JSON 值")
+        default: throw failure(L10n.tr("此处需要 JSON 值"))
         }
     }
 
     private mutating func container(depth: Int) throws {
-        guard depth < JSONTextFormatter.maximumDepth else { throw failure("嵌套超过 128 层，无法格式化") }
+        guard depth < JSONTextFormatter.maximumDepth else { throw failure(L10n.tr("嵌套超过 128 层，无法格式化")) }
         let isObject = current == 123
         let close: UInt8 = isObject ? 125 : 93
         try append(bytes[index])
@@ -90,10 +90,10 @@ private struct JSONWhitespaceParser {
         try newline(depth: depth + 1)
         while true {
             if isObject {
-                guard current == 34 else { throw failure("对象键必须使用双引号") }
+                guard current == 34 else { throw failure(L10n.tr("对象键必须使用双引号")) }
                 try string()
                 skipWhitespace()
-                guard current == 58 else { throw failure("对象键后缺少冒号") }
+                guard current == 58 else { throw failure(L10n.tr("对象键后缺少冒号")) }
                 index += 1
                 try append(58)
                 try append(32)
@@ -106,7 +106,7 @@ private struct JSONWhitespaceParser {
                 try append(close)
                 return
             }
-            guard current == 44 else { throw failure(isObject ? "此处需要逗号或 }" : "此处需要逗号或 ]") }
+            guard current == 44 else { throw failure(isObject ? L10n.tr("此处需要逗号或 }") : L10n.tr("此处需要逗号或 ]")) }
             index += 1
             try append(44)
             try newline(depth: depth + 1)
@@ -120,10 +120,10 @@ private struct JSONWhitespaceParser {
         index += 1
         while let byte = current {
             if byte == 34 { index += 1; try appendToken(from: start); return }
-            guard byte >= 32 else { throw failure("字符串中包含未转义的控制字符") }
+            guard byte >= 32 else { throw failure(L10n.tr("字符串中包含未转义的控制字符")) }
             index += 1
             if byte == 92 {
-                guard let escape = current else { throw failure("字符串转义不完整") }
+                guard let escape = current else { throw failure(L10n.tr("字符串转义不完整")) }
                 index += 1
                 switch escape {
                 case 34, 92, 47, 98, 102, 110, 114, 116: break
@@ -131,32 +131,32 @@ private struct JSONWhitespaceParser {
                     for _ in 0..<4 {
                         guard let hex = current,
                               (48...57).contains(hex) || (65...70).contains(hex) || (97...102).contains(hex) else {
-                            throw failure("Unicode 转义需要四位十六进制字符")
+                            throw failure(L10n.tr("Unicode 转义需要四位十六进制字符"))
                         }
                         index += 1
                     }
-                default: throw failure("无效的字符串转义")
+                default: throw failure(L10n.tr("无效的字符串转义"))
                 }
             }
         }
-        throw failure("字符串缺少结束双引号")
+        throw failure(L10n.tr("字符串缺少结束双引号"))
     }
 
     private mutating func number() throws {
         let start = index
         if current == 45 { index += 1 }
-        guard isDigit(current) else { throw failure("负号后缺少数字") }
+        guard isDigit(current) else { throw failure(L10n.tr("负号后缺少数字")) }
         if current == 48 { index += 1 }
         else { while isDigit(current) { index += 1 } }
         if current == 46 {
             index += 1
-            guard isDigit(current) else { throw failure("小数点后缺少数字") }
+            guard isDigit(current) else { throw failure(L10n.tr("小数点后缺少数字")) }
             while isDigit(current) { index += 1 }
         }
         if current == 101 || current == 69 {
             index += 1
             if current == 43 || current == 45 { index += 1 }
-            guard isDigit(current) else { throw failure("指数部分缺少数字") }
+            guard isDigit(current) else { throw failure(L10n.tr("指数部分缺少数字")) }
             while isDigit(current) { index += 1 }
         }
         try appendToken(from: start)
@@ -165,7 +165,7 @@ private struct JSONWhitespaceParser {
     private mutating func literal(_ value: StaticString) throws {
         let start = index
         for byte in String(describing: value).utf8 {
-            guard current == byte else { throw failure("无效的 JSON 值") }
+            guard current == byte else { throw failure(L10n.tr("无效的 JSON 值")) }
             index += 1
         }
         try appendToken(from: start)

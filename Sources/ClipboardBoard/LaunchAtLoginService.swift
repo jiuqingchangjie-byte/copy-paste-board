@@ -1,3 +1,4 @@
+import ClipboardCore
 import Foundation
 import ServiceManagement
 
@@ -27,11 +28,11 @@ final class LaunchAtLoginService {
         var errorDescription: String? {
             switch self {
             case .applicationBundleRequired:
-                return "请打开打包后的 ClipboardBoard.app，再设置登录自启。"
+                return L10n.tr("请打开打包后的 ClipboardBoard.app，再设置登录自启。")
             case .serviceUnavailable:
-                return "macOS 无法找到此应用的登录项。请将 ClipboardBoard.app 放在固定位置（建议“应用程序”），重新打开后再试。"
+                return L10n.tr("macOS 无法找到此应用的登录项。请将 ClipboardBoard.app 放在固定位置（建议“应用程序”），重新打开后再试。")
             case .operationFailed(let enabling, let error):
-                return "无法\(enabling ? "开启" : "关闭")登录自启：\(error.localizedDescription)"
+                return L10n.tr("无法{0}登录自启：{1}", String(describing: enabling ? L10n.tr("开启") : L10n.tr("停用")), String(describing: error.localizedDescription))
             }
         }
     }

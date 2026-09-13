@@ -19,9 +19,11 @@ public struct KeyboardShortcut: Codable, Equatable, Hashable {
             && !modifiers.intersection([.command, .control, .option]).isEmpty
     }
     public var displayName: String {
-        (modifiers.contains(.control) ? "⌃" : "") + (modifiers.contains(.option) ? "⌥" : "")
+        let key = Self.keyNames[keyCode] ?? "?"
+        let label = key.hasPrefix("小键盘 ") ? L10n.tr("小键盘 {0}", String(key.dropFirst(4))) : key
+        return (modifiers.contains(.control) ? "⌃" : "") + (modifiers.contains(.option) ? "⌥" : "")
             + (modifiers.contains(.shift) ? "⇧" : "") + (modifiers.contains(.command) ? "⌘" : "")
-            + (Self.keyNames[keyCode] ?? "?")
+            + label
     }
     // Stable key-position labels. Keyboard layout changes do not alter the binding.
     public static let keyNames: [UInt32: String] = [

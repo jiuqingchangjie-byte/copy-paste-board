@@ -10,14 +10,14 @@ public enum StorageRelocator {
         let original = source.directoryURL.resolvingSymlinksInPath().standardizedFileURL
         let target = destination.resolvingSymlinksInPath().standardizedFileURL
         guard !target.pathComponents.contains(where: { $0.lowercased().hasSuffix(".app") }) else {
-            throw LocalStorageError("请选择应用包外的文件夹，避免破坏应用签名。")
+            throw LocalStorageError(L10n.tr("请选择应用包外的文件夹，避免破坏应用签名。"))
         }
         if target == original { return source }
         guard !target.path.hasPrefix(original.path + "/"), !original.path.hasPrefix(target.path + "/") else {
-            throw LocalStorageError("新目录不能位于当前数据目录内部，也不能是其上级目录。")
+            throw LocalStorageError(L10n.tr("新目录不能位于当前数据目录内部，也不能是其上级目录。"))
         }
         if fm.fileExists(atPath: target.path), !(try fm.contentsOfDirectory(atPath: target.path)).isEmpty {
-            throw LocalStorageError("目标数据目录已有内容，请选择空目录；不会覆盖或合并已有历史。")
+            throw LocalStorageError(L10n.tr("目标数据目录已有内容，请选择空目录；不会覆盖或合并已有历史。"))
         }
         let parent = target.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".ClipboardBoardMigration-\(UUID().uuidString)")
@@ -36,7 +36,7 @@ public enum StorageRelocator {
         let originalFiles = try regularFiles(original)
         for relative in originalFiles {
             guard try digest(original.appendingPathComponent(relative)) == digest(stage.appendingPathComponent(relative)) else {
-                throw LocalStorageError("迁移校验失败，仍使用原目录。")
+                throw LocalStorageError(L10n.tr("迁移校验失败，仍使用原目录。"))
             }
             let file = try FileHandle(forWritingTo: stage.appendingPathComponent(relative))
             try file.synchronize()
@@ -44,7 +44,7 @@ public enum StorageRelocator {
             try file.close()
         }
         if fm.fileExists(atPath: target.path), Darwin.rmdir(target.path) != 0 {
-            throw LocalStorageError("目标目录已被占用，迁移停止，原目录保持不变。")
+            throw LocalStorageError(L10n.tr("目标目录已被占用，迁移停止，原目录保持不变。"))
         }
         try fm.moveItem(at: stage, to: target)
         let parentFD = Darwin.open(parent.path, O_RDONLY)
@@ -57,7 +57,7 @@ public enum StorageRelocator {
         let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys)
         while let url = enumerator?.nextObject() as? URL {
             if try url.resourceValues(forKeys: Set(keys)).isSymbolicLink == true {
-                throw LocalStorageError("数据目录包含符号链接，迁移已停止，请先检查目录。")
+                throw LocalStorageError(L10n.tr("数据目录包含符号链接，迁移已停止，请先检查目录。"))
             }
         }
     }

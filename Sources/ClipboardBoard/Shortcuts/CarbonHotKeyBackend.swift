@@ -29,14 +29,14 @@ final class CarbonHotKeyBackend: HotKeyBackend {
                     .receive(id: id.id, pressed: GetEventKind(event) == UInt32(kEventHotKeyPressed))
                 return noErr
             }, 2, &types, Unmanaged.passUnretained(self).toOpaque(), &handler)
-            guard status == noErr else { throw ShortcutError(message: "无法安装快捷键事件处理器（\(status)）。") }
+            guard status == noErr else { throw ShortcutError(message: L10n.tr("无法安装快捷键事件处理器（{0}）。", String(describing: status))) }
         }
         var reference: EventHotKeyRef?
         let status = RegisterEventHotKey(shortcut.keyCode, shortcut.carbonModifiers,
             EventHotKeyID(signature: Self.signature, id: id), GetApplicationEventTarget(),
             OptionBits(kEventHotKeyExclusive), &reference)
         guard status == noErr, let reference else {
-            throw ShortcutError(message: "\(shortcut.displayName) 注册失败，可能被其他应用占用（\(status)）。请换一个组合。")
+            throw ShortcutError(message: L10n.tr("{0} 注册失败，可能被其他应用占用（{1}）。请换一个组合。", String(describing: shortcut.displayName), String(describing: status)))
         }
         references[id] = reference
     }

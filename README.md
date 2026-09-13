@@ -4,17 +4,19 @@
 
 一个原生 macOS 菜单栏剪贴板历史工具。按 **⌥ Option + V** 找回最近复制的文字、图片和文件，使用方向键选择，再按回车粘贴到原应用。
 
-采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.5.0**，应用界面目前为中文。
+采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.6.0**，支持中文（简体）、英语、日语、韩语切换，四语历史窗口保持相同紧凑尺寸。
 
 ## 直接下载安装
 
-[下载 v1.5.0 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.5.0/ClipboardBoard-v1.5.0-macos-arm64.zip)
+[下载 v1.6.0 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.6.0/ClipboardBoard-v1.6.0-macos-arm64.zip)
 
 解压后将 `ClipboardBoard.app` 放入个人主目录下的 `Applications` 文件夹（`~/Applications`），再打开。不需要源码、Xcode、签名工具或 Apple 开发者会员。包内附有中英文安装说明。
 
-应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.5.0)
+应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.6.0)
 
 ## 功能
+
+- **界面语言**：在“更多选项 → 语言 / Language”切换四种语言，立即生效并记住选择；复制内容保持原文。[使用与验收](docs/LANGUAGES.md)。
 
 - **独立收藏库**：点击历史星标保存常用内容，收藏不占历史额度、没有 50 条上限；按文件夹整理，多选移动/取消收藏及一键清空。[产品方案与验收](docs/FAVORITES_AND_STORAGE.md)。
 - **可配置存储**：通过“存储位置”迁移历史、收藏和设置，校验后切换、保留旧副本；已落盘内容可重启恢复。
@@ -204,7 +206,7 @@ CLIPBOARD_PREVIEW_DIR="$PWD/.build/previews" ./scripts/test.sh
 每轮实机验收先核对进程与本轮构建，安装位置不是 `dist` 时显式传入路径：
 
 ```bash
-./scripts/verify-running.sh 1.5.0 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.6.0 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 脚本会比较运行路径、版本、构建编号、可执行文件哈希和签名，并与本轮 `dist` 构建对照；同版本旧构建也会被拒绝。

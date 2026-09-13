@@ -35,6 +35,7 @@ trap cleanup EXIT
 mkdir -p "$STAGED_APP/Contents/MacOS" "$STAGED_APP/Contents/Resources"
 cp "$BIN_DIR/ClipboardBoard" "$STAGED_APP/Contents/MacOS/ClipboardBoard"
 cp Resources/Info.plist "$STAGED_APP/Contents/Info.plist"
+cp -R Resources/Localization/. "$STAGED_APP/Contents/Resources/"
 /usr/libexec/PlistBuddy -c "Add ClipboardBoardBuildID string $(uuidgen)" "$STAGED_APP/Contents/Info.plist"
 codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$STAGED_APP"
 codesign --verify --deep --strict "$STAGED_APP"

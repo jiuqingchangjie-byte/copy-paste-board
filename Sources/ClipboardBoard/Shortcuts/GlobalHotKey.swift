@@ -30,7 +30,7 @@ final class GlobalHotKey {
         do { try persist() }
         catch {
             backend.release(id: candidateID)
-            throw ShortcutError(message: "保存失败，原快捷键保持不变。请检查数据目录或通过“数据与恢复”重试。")
+            throw ShortcutError(message: L10n.tr("保存失败，原快捷键保持不变。请检查数据目录或通过“数据与恢复”重试。"))
         }
         let oldID = activeID
         activeID = candidateID

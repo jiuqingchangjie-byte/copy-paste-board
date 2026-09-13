@@ -1,10 +1,11 @@
+import ClipboardCore
 import AppKit
 
 final class TextPreviewViewController: NSViewController {
     let textView = PreviewTextView()
     let scrollView = NSScrollView()
     let formatting: JSONPreviewFormattingController?
-    private let status = NSTextField(wrappingLabelWithString: "选取文字后按 ⌘C，可复制到历史记录")
+    private let status = NSTextField(wrappingLabelWithString: L10n.tr("选取文字后按 ⌘C，可复制到历史记录"))
     var onCopyText: ((String) -> Bool)?
     private let text: String
 
@@ -36,15 +37,15 @@ final class TextPreviewViewController: NSViewController {
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: 450, height: CGFloat.greatestFiniteMagnitude)
         textView.string = text
-        textView.setAccessibilityLabel("完整内容，可选择部分文字复制")
+        textView.setAccessibilityLabel(L10n.tr("完整内容，可选择部分文字复制"))
         textView.onCopyText = { [weak self] text in
             let success = self?.onCopyText?(text) == true
-            self?.status.stringValue = success ? "已复制选中文本并加入历史" : "复制失败，原内容仍保留"
+            self?.status.stringValue = success ? L10n.tr("已复制选中文本并加入历史") : L10n.tr("复制失败，原内容仍保留")
             self?.status.textColor = success ? .secondaryLabelColor : .systemRed
             return success
         }
         scrollView.documentView = textView
-        let copyButton = NSButton(title: "复制选中文本", target: textView, action: #selector(NSText.copy(_:)))
+        let copyButton = NSButton(title: L10n.tr("复制选中文本"), target: textView, action: #selector(NSText.copy(_:)))
         copyButton.bezelStyle = .rounded
         status.font = .systemFont(ofSize: 11)
         status.textColor = .secondaryLabelColor

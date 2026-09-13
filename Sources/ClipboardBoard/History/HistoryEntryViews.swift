@@ -74,8 +74,8 @@ final class ClipCellView: NSTableCellView {
         favoriteAction = action;favoriteButton.isHidden = false;rowTrailing.constant = -38
         favoriteButton.image = NSImage(systemSymbolName: saved ? "star.fill" : "star",accessibilityDescription:nil)
         favoriteButton.contentTintColor = saved ? .systemOrange : .secondaryLabelColor
-        favoriteButton.setAccessibilityLabel(saved ? "取消收藏此条内容" : "收藏此条内容")
-        favoriteButton.toolTip = saved ? "取消收藏" : "收藏到未分类"
+        favoriteButton.setAccessibilityLabel(saved ? L10n.tr("取消收藏此条内容") : L10n.tr("收藏此条内容"))
+        favoriteButton.toolTip = saved ? L10n.tr("取消收藏") : L10n.tr("收藏到未分类")
     }
     @objc private func toggleFavorite() { favoriteAction?() }
 
@@ -86,31 +86,31 @@ final class ClipCellView: NSTableCellView {
             preview.isHidden = true
             title.stringValue = String(text.prefix(500)).replacingOccurrences(of: "\n", with: "  ")
                 .replacingOccurrences(of: "\r", with: " ")
-            preview.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: "文本")
+            preview.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: L10n.tr("文本"))
             preview.contentTintColor = .secondaryLabelColor
-            kind = "文本 · \(text.count) 字符"
+            kind = L10n.tr("文本 · {0} 字符", String(describing: text.count))
         case .image(let data):
             title.isHidden = true
             let image = NSImage(data: data)
             preview.image = image
-            title.stringValue = "图片"
+            title.stringValue = L10n.tr("图片")
             if let rep = image?.representations.first {
-                kind = "图片 · \(rep.pixelsWide) × \(rep.pixelsHigh)"
-            } else { kind = "图片" }
+                kind = L10n.tr("图片 · {0} × {1}", String(describing: rep.pixelsWide), String(describing: rep.pixelsHigh))
+            } else { kind = L10n.tr("图片") }
         case .files(let paths):
             preview.isHidden = true
             let urls = paths.compactMap(URL.init(string:))
             title.stringValue = urls.map(\.lastPathComponent).joined(separator: "、")
-            preview.image = NSImage(systemSymbolName: paths.count > 1 ? "doc.on.doc" : "doc", accessibilityDescription: "文件")
+            preview.image = NSImage(systemSymbolName: paths.count > 1 ? "doc.on.doc" : "doc", accessibilityDescription: L10n.tr("文件"))
             preview.contentTintColor = .secondaryLabelColor
-            kind = "\(paths.count) 个文件"
+            kind = L10n.tr("{0} 个文件", String(describing: paths.count))
         }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.locale = L10n.language.locale
         formatter.unitsStyle = .short
-        let source = entry.sourceName.isEmpty ? "" : " · \(entry.sourceName)"
+        let source = entry.sourceName.isEmpty ? "" : " · \(L10n.sourceName(entry.sourceName))"
         let age = Date().timeIntervalSince(entry.copiedAt)
-        let time = age < 60 ? "刚刚" : formatter.localizedString(for: entry.copiedAt, relativeTo: Date())
+        let time = age < 60 ? L10n.tr("刚刚") : formatter.localizedString(for: entry.copiedAt, relativeTo: Date())
         detail.stringValue = "\(kind)\(source) · \(time)"
         setAccessibilityLabel("\(title.stringValue)，\(detail.stringValue)")
     }

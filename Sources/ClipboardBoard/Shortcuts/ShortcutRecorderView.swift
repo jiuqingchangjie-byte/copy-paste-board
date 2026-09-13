@@ -37,7 +37,7 @@ final class ShortcutRecorderView: NSView {
         window?.makeFirstResponder(self)
         isRecording = true
         updateLabel()
-        onMessage?("按下新的组合键；Esc 取消录制。")
+        onMessage?(L10n.tr("按下新的组合键；Esc 取消录制。"))
     }
     func stopRecording() { isRecording = false; updateLabel() }
 
@@ -45,7 +45,7 @@ final class ShortcutRecorderView: NSView {
     func capture(_ event: NSEvent) -> Bool {
         guard isRecording, event.type == .keyDown else { return false }
         if event.isARepeat { return true }
-        if event.keyCode == 53 { stopRecording(); onMessage?("已取消录制，候选快捷键未改变。"); return true }
+        if event.keyCode == 53 { stopRecording(); onMessage?(L10n.tr("已取消录制，候选快捷键未改变。")); return true }
         var modifiers: KeyboardShortcut.Modifiers = []
         if event.modifierFlags.contains(.command) { modifiers.insert(.command) }
         if event.modifierFlags.contains(.option) { modifiers.insert(.option) }
@@ -62,15 +62,15 @@ final class ShortcutRecorderView: NSView {
         shortcut = value
         stopRecording()
         onChange?(value)
-        onMessage?("已录制 \(value.displayName)，点击保存检查占用并生效。")
+        onMessage?(L10n.tr("已录制 {0}，点击保存检查占用并生效。", String(describing: value.displayName)))
     }
 
     private func updateLabel() {
-        label.stringValue = isRecording ? "按下组合键…" : shortcut.displayName
+        label.stringValue = isRecording ? L10n.tr("按下组合键…") : shortcut.displayName
         layer?.backgroundColor = (isRecording ? NSColor.controlAccentColor.withAlphaComponent(0.12) : NSColor.controlBackgroundColor).cgColor
         layer?.borderWidth = 1
         layer?.borderColor = (isRecording ? NSColor.controlAccentColor : NSColor.separatorColor).cgColor
-        setAccessibilityLabel("快捷键录制：\(label.stringValue)")
+        setAccessibilityLabel(L10n.tr("快捷键录制：{0}", String(describing: label.stringValue)))
     }
 }
 

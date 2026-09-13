@@ -1,3 +1,4 @@
+import ClipboardCore
 import AppKit
 import ApplicationServices
 import Carbon
@@ -27,6 +28,18 @@ extension PasteEnvironment {
 final class PasteService {
     enum Outcome: Equatable {
         case eventPosted, permissionRequired, targetUnavailable, focusChanged, keysStillPressed, clipboardChanged, clipboardWriteFailed, deliveryUncertain
+        var localizedDescription: String {
+            switch self {
+            case .eventPosted: return L10n.tr("已提交粘贴")
+            case .permissionRequired: return L10n.tr("需要辅助功能权限")
+            case .targetUnavailable: return L10n.tr("目标程序不可用")
+            case .focusChanged: return L10n.tr("输入焦点已改变")
+            case .keysStillPressed: return L10n.tr("按键尚未松开")
+            case .clipboardChanged: return L10n.tr("剪贴板内容已改变")
+            case .clipboardWriteFailed: return L10n.tr("剪贴板写入失败")
+            case .deliveryUncertain: return L10n.tr("粘贴结果尚未确认")
+            }
+        }
     }
     private var operationID = UUID()
     private let environment: PasteEnvironment
@@ -58,7 +71,7 @@ final class PasteService {
     func paste(intoPID pid: pid_t?, prepareClipboard: () -> Bool = { true }, beforeActivation: @escaping () -> Void,
                completion: @escaping (Outcome) -> Void) {
         cancel()
-        onProgress?("已接收粘贴请求")
+        onProgress?(L10n.tr("已接收粘贴请求"))
         guard hasPermission else { completion(.permissionRequired); return }
         guard let pid, pid != environment.ownPID, environment.isRunning(pid) else {
             completion(.targetUnavailable)
@@ -91,7 +104,7 @@ final class PasteService {
             return
         }
         beforeActivation()
-        onProgress?("正在恢复目标程序")
+        onProgress?(L10n.tr("正在恢复目标程序"))
         guard operationID == operation else { return }
         // A nonactivating panel can own key focus while frontmostApplication is
         // still the old app. Activate the target even when its PID already matches.
@@ -124,7 +137,7 @@ final class PasteService {
         }
         guard environment.restoreTargetFocus(pid) else { completion(.targetUnavailable); return }
         guard environment.frontmostPID == pid else { completion(.focusChanged); return }
-        onProgress?("已恢复原输入框，正在提交粘贴")
+        onProgress?(L10n.tr("已恢复原输入框，正在提交粘贴"))
         switch environment.deliverPaste(into: pid) {
         case .submitted: completion(.eventPosted)
         case .unavailable: completion(.targetUnavailable)

@@ -10,7 +10,7 @@ final class PreviewCopyService {
 
     @discardableResult
     func copy(_ text: String) -> Bool {
-        copy(.text(text), sourceName: "剪贴板预览")
+        copy(.text(text), sourceName: L10n.tr("剪贴板预览"))
     }
 
     @discardableResult

@@ -1,3 +1,4 @@
+import ClipboardCore
 import AppKit
 
 /// Keeps the original image data in memory; zoom changes presentation only.
@@ -21,7 +22,7 @@ final class ImagePreviewViewController: NSViewController {
         view = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 400))
         imageView.frame = NSRect(origin: .zero, size: imageView.image!.size)
         imageView.imageScaling = .scaleAxesIndependently
-        imageView.setAccessibilityLabel("原图，可通过双指缩放或缩放按钮查看")
+        imageView.setAccessibilityLabel(L10n.tr("原图，可通过双指缩放或缩放按钮查看"))
         scrollView.documentView = imageView
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
@@ -36,8 +37,8 @@ final class ImagePreviewViewController: NSViewController {
             NSButton(title: "−", target: self, action: #selector(zoomOut)),
             zoomLabel,
             NSButton(title: "+", target: self, action: #selector(zoomIn)),
-            NSButton(title: "原始大小", target: self, action: #selector(actualSize)),
-            NSButton(title: "适合窗口", target: self, action: #selector(fitToWindow))
+            NSButton(title: L10n.tr("原始大小"), target: self, action: #selector(actualSize)),
+            NSButton(title: L10n.tr("适合窗口"), target: self, action: #selector(fitToWindow))
         ]
         let toolbar = NSStackView(views: buttons)
         toolbar.spacing = 8

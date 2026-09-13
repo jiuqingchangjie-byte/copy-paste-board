@@ -16,7 +16,7 @@ public struct StorageLocation {
         let document = try JSONDecoder().decode(LocationDocument.self, from: Data(contentsOf: pointerURL))
         guard document.schemaVersion == 1 else { throw DataFormatError.newerVersion(document.schemaVersion) }
         let url = URL(fileURLWithPath: document.directoryPath, isDirectory: true).standardizedFileURL
-        guard document.directoryPath.hasPrefix("/") else { throw LocalStorageError("存储位置配置无效，原文件已保留。") }
+        guard document.directoryPath.hasPrefix("/") else { throw LocalStorageError(L10n.tr("存储位置配置无效，原文件已保留。")) }
         return url
     }
     public func resolve() throws -> AppDataStore {
@@ -24,7 +24,7 @@ public struct StorageLocation {
         guard !isCustom || ["history.json", "settings.json", "favorites.sqlite"].allSatisfy({
             FileManager.default.fileExists(atPath: url.appendingPathComponent($0).path)
         }) else {
-            throw LocalStorageError("自定义存储位置不可用或数据缺失：\(url.path)。请恢复目录连接后重试；不会自动切换到空目录。")
+            throw LocalStorageError(L10n.tr("自定义存储位置不可用或数据缺失：{0}。请恢复目录连接后重试；不会自动切换到空目录。", String(describing: url.path)))
         }
         return AppDataStore(directoryURL: url)
     }

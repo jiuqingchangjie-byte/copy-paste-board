@@ -1,3 +1,4 @@
+import ClipboardCore
 import AppKit
 
 /// Read-only text with normal selection and a single explicit copy command.
@@ -12,9 +13,9 @@ final class PreviewTextView: NSTextView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
-        let copy = menu.addItem(withTitle: "复制选中文本", action: #selector(copy(_:)), keyEquivalent: "")
+        let copy = menu.addItem(withTitle: L10n.tr("复制选中文本"), action: #selector(copy(_:)), keyEquivalent: "")
         copy.target = self
-        let select = menu.addItem(withTitle: "全选", action: #selector(selectAll(_:)), keyEquivalent: "")
+        let select = menu.addItem(withTitle: L10n.tr("全选"), action: #selector(selectAll(_:)), keyEquivalent: "")
         select.target = self
         return menu
     }

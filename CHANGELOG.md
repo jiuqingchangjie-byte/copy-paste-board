@@ -4,6 +4,16 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.6.0
+
+- 修正非中文界面导致历史窗口变宽：四语统一 340 × 490 点，使用紧凑操作图标与可换行提示。
+- Keep the history panel at 340 × 490 points in all four languages, with compact action icons and wrapping hints.
+
+- 新增中文（统一简体）、英语、日语、韩语界面和即时语言切换；选择持久化，兼容旧设置与存储迁移。
+- 覆盖历史、收藏、预览、设置、错误信息、无障碍标签和相对时间；统一术语并适配较长译文。
+- Add persistent, immediate language switching for Simplified Chinese, English, Japanese, and Korean. Localize app-owned menus, previews, settings, errors, accessibility labels, and relative times while preserving user content and storage compatibility.
+- 实际执行 136 项 Swift 测试及 8 项流程测试通过；[术语与验收](docs/LANGUAGES.md)。
+
 ## 1.5.0
 
 - 新增独立收藏库：星标入口、目录、分页搜索、多选移动/取消收藏、范围清空；收藏不占普通历史额度，没有 50 条上限。

@@ -35,7 +35,7 @@ public final class FavoritesRepository {
     public func close() { serialized { database.close() } }
     public func validate() throws {
         try serialized {
-            guard try database.run("PRAGMA quick_check").first?.first?.text == "ok" else { throw LocalStorageError("收藏库校验失败，原文件已保留。") }
+            guard try database.run("PRAGMA quick_check").first?.first?.text == "ok" else { throw LocalStorageError(L10n.tr("收藏库校验失败，原文件已保留。")) }
         }
     }
     private func fingerprint(_ payload: ClipPayload) throws -> (String, Data) {
@@ -49,7 +49,7 @@ public final class FavoritesRepository {
     }
     @discardableResult
     public func add(_ entry: HistoryEntry, folderID: UUID? = nil, thumbnail: Data? = nil) throws -> UUID {
-        guard entry.payload.isValid, entry.payload.byteCount <= 8 * 1024 * 1024 else { throw LocalStorageError("这条内容为空或超过单条 8 MiB 限制。") }
+        guard entry.payload.isValid, entry.payload.byteCount <= 8 * 1024 * 1024 else { throw LocalStorageError(L10n.tr("这条内容为空或超过单条 8 MiB 限制。")) }
         let (key, data) = try fingerprint(entry.payload)
         return try serialized {
             if let row = try database.run("SELECT id FROM favorites WHERE fingerprint=?", [.text(key)]).first, let id = UUID(uuidString: row[0].text) { return id }
@@ -102,14 +102,19 @@ public final class FavoritesRepository {
     }
     private func checkedName(_ name: String) throws -> String {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, name.count <= 60, name.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else { throw LocalStorageError("文件夹名称需为 1–60 个字符，不能含换行或控制字符。") }
-        guard !["全部收藏", "未分类"].contains(name) else { throw LocalStorageError("请使用不同于“全部收藏”和“未分类”的文件夹名称。") }
+        guard !name.isEmpty, name.count <= 60, name.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else { throw LocalStorageError(L10n.tr("文件夹名称需为 1–60 个字符，不能含换行或控制字符。")) }
+        let reserved = AppLanguage.allCases.flatMap { language in
+            ["全部收藏", "未分类"].map { L10n.text($0, language: language) }
+        }
+        guard !reserved.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) else {
+            throw LocalStorageError(L10n.tr("请使用不同于“全部收藏”和“未分类”的文件夹名称。"))
+        }
         return name
     }
     @discardableResult public func createFolder(name: String) throws -> UUID {
         let name = try checkedName(name), id = UUID()
         try serialized {
-            guard try database.run("SELECT id FROM folders WHERE name=?",[.text(name)]).isEmpty else { throw LocalStorageError("同名文件夹已存在。") }
+            guard try database.run("SELECT id FROM folders WHERE name=?",[.text(name)]).isEmpty else { throw LocalStorageError(L10n.tr("同名文件夹已存在。")) }
             try database.run("INSERT INTO folders VALUES (?,?)", [.text(id.uuidString),.text(name)])
         }
         return id
@@ -117,7 +122,7 @@ public final class FavoritesRepository {
     public func renameFolder(id: UUID, name: String) throws {
         let name = try checkedName(name)
         try serialized {
-            guard try database.run("SELECT id FROM folders WHERE name=? AND id<>?",[.text(name),.text(id.uuidString)]).isEmpty else { throw LocalStorageError("同名文件夹已存在。") }
+            guard try database.run("SELECT id FROM folders WHERE name=? AND id<>?",[.text(name),.text(id.uuidString)]).isEmpty else { throw LocalStorageError(L10n.tr("同名文件夹已存在。")) }
             try database.run("UPDATE folders SET name=? WHERE id=?", [.text(name),.text(id.uuidString)])
         }
     }

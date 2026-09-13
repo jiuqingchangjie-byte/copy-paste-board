@@ -1,0 +1,2 @@
+"CFBundleDisplayName" = "ClipboardBoard";
+"NSAccessibilityUsageDescription" = "Allows the clipboard history entry you select to be pasted into the original app.";

@@ -1,3 +1,4 @@
+import ClipboardCore
 import AppKit
 
 /// A persistent menu control so changing the preference also shows its resulting
@@ -5,7 +6,7 @@ import AppKit
 final class LaunchAtLoginMenuView: NSView {
     let toggle = NSSwitch()
     let statusLabel = NSTextField(labelWithString: "")
-    private let settingsButton = NSButton(title: "去设置", target: nil, action: nil)
+    private let settingsButton = NSButton(title: L10n.tr("去设置"), target: nil, action: nil)
     private let service: LaunchAtLoginService
     private let onOpenSettings: () -> Void
     private var refreshTimer: Timer?
@@ -15,15 +16,15 @@ final class LaunchAtLoginMenuView: NSView {
     init(service: LaunchAtLoginService, onOpenSettings: @escaping () -> Void) {
         self.service = service
         self.onOpenSettings = onOpenSettings
-        super.init(frame: NSRect(x: 0, y: 0, width: 300, height: 66))
-        let title = NSTextField(labelWithString: "登录时自动启动")
+        super.init(frame: NSRect(x: 0, y: 0, width: L10n.language == .chinese ? 300 : 400, height: 66))
+        let title = NSTextField(labelWithString: L10n.tr("登录时自动启动"))
         title.font = .systemFont(ofSize: 13)
         title.setContentCompressionResistancePriority(.required, for: .horizontal)
         statusLabel.font = .systemFont(ofSize: 11)
         statusLabel.lineBreakMode = .byTruncatingTail
         toggle.target = self
         toggle.action = #selector(toggleChanged)
-        toggle.setAccessibilityLabel("登录时自动启动")
+        toggle.setAccessibilityLabel(L10n.tr("登录时自动启动"))
         toggle.setContentHuggingPriority(.required, for: .horizontal)
         settingsButton.target = self
         settingsButton.action = #selector(openSettings)
@@ -79,13 +80,13 @@ final class LaunchAtLoginMenuView: NSView {
         settingsButton.isHidden = status == .enabled || status == .disabled
         let text: String
         switch status {
-        case .enabled: text = "已开启"
-        case .disabled: text = "已关闭"
-        case .requiresApproval: text = "等待系统批准 · 尚未生效"
-        case .notFound: text = "尚未找到登录项 · 可尝试开启"
-        case .unknown: text = "无法读取系统状态"
+        case .enabled: text = L10n.tr("已开启")
+        case .disabled: text = L10n.tr("已关闭")
+        case .requiresApproval: text = L10n.tr("等待系统批准 · 尚未生效")
+        case .notFound: text = L10n.tr("尚未找到登录项 · 可尝试开启")
+        case .unknown: text = L10n.tr("无法读取系统状态")
         }
-        statusLabel.stringValue = failureMessage == nil ? text : "更改失败 · \(text)"
+        statusLabel.stringValue = failureMessage == nil ? text : L10n.tr("更改失败 · {0}", String(describing: text))
         statusLabel.textColor = failureMessage != nil ? .systemRed
             : status == .requiresApproval ? .systemOrange : .secondaryLabelColor
         statusLabel.toolTip = failureMessage ?? text

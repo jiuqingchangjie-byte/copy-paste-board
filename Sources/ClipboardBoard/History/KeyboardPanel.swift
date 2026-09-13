@@ -1,3 +1,4 @@
+import ClipboardCore
 import AppKit
 
 final class KeyboardPanel: NSPanel {
@@ -38,7 +39,7 @@ final class KeyboardPanel: NSPanel {
         case 125: onMove?(1)
         case 126: onMove?(-1)
         case 36, 76:
-            onKeyboardRoute?("\(route)：回车\(event.isARepeat ? "重复已忽略" : "已接收")")
+            onKeyboardRoute?(L10n.tr("{0}：回车{1}", String(describing: route), String(describing: event.isARepeat ? L10n.tr("重复已忽略") : L10n.tr("已接收"))))
             if !event.isARepeat { onAccept?() }
         case 53: onEscape?()
         case 51 where event.modifierFlags.contains(.command): onDelete?()
@@ -50,12 +51,12 @@ final class KeyboardPanel: NSPanel {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         // AppKit may dispatch Return through key-equivalent processing before
         // NSWindow.sendEvent, particularly while a search field owns focus.
-        if handleHistoryKey(event, route: "快捷键分发") { return true }
+        if handleHistoryKey(event, route: L10n.tr("快捷键分发")) { return true }
         return super.performKeyEquivalent(with: event)
     }
 
     override func sendEvent(_ event: NSEvent) {
-        if handleHistoryKey(event, route: "窗口按键") { return }
+        if handleHistoryKey(event, route: L10n.tr("窗口按键")) { return }
         super.sendEvent(event)
     }
 }

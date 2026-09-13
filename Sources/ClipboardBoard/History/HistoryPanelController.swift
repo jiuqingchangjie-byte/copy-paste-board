@@ -10,13 +10,13 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
     private weak var previewResponder: NSResponder?
     private var scrollObserver: NSObjectProtocol?
     private let search = NSSearchField()
-    private let countLabel = NSTextField(labelWithString: "0 条记录")
-    var shortcutName = "⌥V" { didSet { if search.stringValue.isEmpty { emptySubtitle.stringValue = "先用 ⌘C 复制，再用 \(shortcutName) 找回。" } } }
-    private let emptyTitle = NSTextField(labelWithString: "你的下一次复制，会出现在这里")
-    private let emptySubtitle = NSTextField(labelWithString: "先用 ⌘C 复制，再用 ⌥V 找回。")
+    private let countLabel = NSTextField(labelWithString: L10n.tr("0 条记录"))
+    var shortcutName = "⌥V" { didSet { if search.stringValue.isEmpty { emptySubtitle.stringValue = L10n.tr("先用 ⌘C 复制，再用 {0} 找回。", String(describing: shortcutName)) } } }
+    private let emptyTitle = NSTextField(wrappingLabelWithString: L10n.tr("你的下一次复制，会出现在这里"))
+    private let emptySubtitle = NSTextField(wrappingLabelWithString: L10n.tr("先用 ⌘C 复制，再用 ⌥V 找回。"))
     private let permissionRow = NSStackView()
-    private let messageLabel = NSTextField(labelWithString: "")
-    private let footerLabel = NSTextField(labelWithString: "↑ ↓ 选择    ↩ 粘贴    esc 关闭")
+    private let messageLabel = NSTextField(wrappingLabelWithString: "")
+    private let footerLabel = NSTextField(wrappingLabelWithString: L10n.tr("↑ ↓ 选择    ↩ 粘贴    esc 关闭"))
     private var allEntries: [HistoryEntry] = []
     private var filteredEntries: [HistoryEntry] = []
     private var outsideMonitor: Any?
@@ -41,8 +41,8 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         let panel = KeyboardPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 490),
                                   styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init(window: panel)
-        panel.title = "剪贴板历史"
-        panel.setAccessibilityLabel("剪贴板历史")
+        panel.title = L10n.tr("剪贴板历史")
+        panel.setAccessibilityLabel(L10n.tr("剪贴板历史"))
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
         panel.isOpaque = false
@@ -77,7 +77,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         icon.contentTintColor = .controlAccentColor
         icon.widthAnchor.constraint(equalToConstant: 22).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 22).isActive = true
-        let title = NSTextField(labelWithString: "剪贴板")
+        let title = NSTextField(labelWithString: L10n.tr("剪贴板"))
         title.font = .systemFont(ofSize: 18, weight: .bold)
         let titleColumn = NSStackView(views: [title, countLabel])
         titleColumn.orientation = .vertical
@@ -86,24 +86,35 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         countLabel.font = .systemFont(ofSize: 11)
         countLabel.textColor = .secondaryLabelColor
 
-        let clearButton = NSButton(title: "全部清空", target: self, action: #selector(clearHistory))
+        let clearButton = NSButton(title: L10n.tr("全部清空"), target: self, action: #selector(clearHistory))
         clearButton.bezelStyle = .inline
         clearButton.isBordered = false
         clearButton.font = .systemFont(ofSize: 12)
         clearButton.contentTintColor = .controlAccentColor
-        let menuButton = NSButton(image: NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "更多选项")!,
+        clearButton.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        clearButton.imagePosition = .imageOnly
+        clearButton.setAccessibilityLabel(L10n.tr("全部清空"))
+        clearButton.toolTip = L10n.tr("全部清空")
+        let menuButton = NSButton(image: NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: L10n.tr("更多选项"))!,
                                   target: self, action: #selector(showMenu(_:)))
         menuButton.bezelStyle = .inline
         menuButton.isBordered = false
-        menuButton.setAccessibilityLabel("更多选项")
-        let favoritesButton = NSButton(title: "收藏", image: NSImage(systemSymbolName: "star", accessibilityDescription: nil)!, target: self, action: #selector(openFavorites))
+        menuButton.setAccessibilityLabel(L10n.tr("更多选项"))
+        let favoritesButton = NSButton(title: L10n.tr("收藏"), image: NSImage(systemSymbolName: "star", accessibilityDescription: nil)!, target: self, action: #selector(openFavorites))
         favoritesButton.isBordered = false
-        favoritesButton.setAccessibilityLabel("打开收藏库")
+        favoritesButton.imagePosition = .imageOnly
+        favoritesButton.setAccessibilityLabel(L10n.tr("打开收藏库"))
+        favoritesButton.toolTip = L10n.tr("打开收藏库")
+        // Keep the same compact geometry in every language. Full action names
+        // remain available to VoiceOver and in tooltips and the menu.
+        for button in [favoritesButton, clearButton, menuButton] {
+            button.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        }
         let headerContent = NSStackView(views: [icon, titleColumn, NSView(), favoritesButton, clearButton, menuButton])
-        headerContent.spacing = 10
+        headerContent.spacing = 8
         headerContent.alignment = .centerY
         let header = DraggableHeaderView()
-        header.toolTip = "拖动这里移动剪贴板"
+        header.toolTip = L10n.tr("拖动这里移动剪贴板")
         header.onDragFinished = { [weak self] origin in
             self?.draggedOrigin = origin
             self?.onOriginChanged?(origin)
@@ -117,13 +128,15 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
             headerContent.trailingAnchor.constraint(equalTo: header.trailingAnchor)
         ])
 
-        search.placeholderString = "搜索内容或来源应用"
+        search.placeholderString = L10n.tr("搜索内容或来源应用")
         search.font = .systemFont(ofSize: 14)
         search.controlSize = .large
         search.focusRingType = .none
         search.delegate = self
         search.sendsSearchStringImmediately = true
-        search.setAccessibilityLabel("搜索剪贴板历史")
+        search.setAccessibilityLabel(L10n.tr("搜索剪贴板历史"))
+        (search.cell as? NSSearchFieldCell)?.searchButtonCell?.setAccessibilityLabel(L10n.tr("搜索"))
+        (search.cell as? NSSearchFieldCell)?.cancelButtonCell?.setAccessibilityLabel(L10n.tr("取消"))
         search.heightAnchor.constraint(equalToConstant: 34).isActive = true
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("entry"))
@@ -142,7 +155,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         table.delegate = self
         table.target = self
         table.doubleAction = #selector(doubleClick)
-        table.setAccessibilityLabel("剪贴板历史记录，使用上下键选择，回车粘贴")
+        table.setAccessibilityLabel(L10n.tr("剪贴板历史记录，使用上下键选择，回车粘贴"))
         let scroll = NSScrollView()
         scroll.documentView = table
         scroll.hasVerticalScroller = true
@@ -162,38 +175,55 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         emptyTitle.textColor = .secondaryLabelColor
         emptySubtitle.font = .systemFont(ofSize: 12)
         emptySubtitle.textColor = .tertiaryLabelColor
+        for label in [emptyTitle, emptySubtitle] {
+            label.alignment = .center
+            label.maximumNumberOfLines = 3
+        }
         let empty = NSStackView(views: [emptyTitle, emptySubtitle])
         empty.orientation = .vertical
         empty.spacing = 10
         empty.translatesAutoresizingMaskIntoConstraints = false
         listArea.addSubview(empty)
+        for label in [emptyTitle, emptySubtitle] {
+            label.widthAnchor.constraint(equalTo: listArea.widthAnchor, constant: -16).isActive = true
+        }
         NSLayoutConstraint.activate([
             empty.centerXAnchor.constraint(equalTo: listArea.centerXAnchor),
             empty.centerYAnchor.constraint(equalTo: listArea.centerYAnchor, constant: -16)
         ])
 
-        let permissionText = NSTextField(labelWithString: "允许辅助功能，即可回车粘贴到原应用")
+        let permissionText = NSTextField(wrappingLabelWithString: L10n.tr("允许辅助功能，即可回车粘贴到原应用"))
         permissionText.font = .systemFont(ofSize: 11)
         permissionText.textColor = .secondaryLabelColor
-        let permissionButton = NSButton(title: "去授权", target: self, action: #selector(requestPermission))
+        permissionText.maximumNumberOfLines = 3
+        permissionText.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let permissionButton = NSButton(title: L10n.tr("去授权"), target: self, action: #selector(requestPermission))
         permissionButton.bezelStyle = .rounded
         permissionButton.controlSize = .small
-        permissionRow.setViews([permissionText, NSView(), permissionButton], in: .leading)
+        permissionRow.setViews([permissionText, permissionButton], in: .leading)
         permissionRow.alignment = .centerY
         permissionRow.spacing = 8
-        permissionRow.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        permissionRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 30).isActive = true
+        permissionText.widthAnchor.constraint(equalTo: permissionRow.widthAnchor,
+            constant: -permissionButton.fittingSize.width - 8).isActive = true
 
         messageLabel.font = .systemFont(ofSize: 11)
         messageLabel.textColor = .systemOrange
-        messageLabel.lineBreakMode = .byTruncatingTail
+        messageLabel.maximumNumberOfLines = 3
         messageLabel.isHidden = true
         footerLabel.font = .systemFont(ofSize: 11)
         footerLabel.textColor = .secondaryLabelColor
-        let localLabel = NSTextField(labelWithString: "存于数据目录")
+        footerLabel.maximumNumberOfLines = 2
+        let localLabel = NSTextField(labelWithString: L10n.tr("存于数据目录"))
         localLabel.font = .systemFont(ofSize: 10)
         localLabel.textColor = .tertiaryLabelColor
-        let footer = NSStackView(views: [footerLabel, NSView(), localLabel])
-        footer.alignment = .centerY
+        localLabel.alignment = .right
+        let footer = NSStackView(views: [footerLabel, localLabel])
+        footer.orientation = .vertical
+        footer.alignment = .width
+        footer.spacing = 3
+        footerLabel.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        localLabel.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
 
         let divider = NSBox()
         divider.boxType = .separator
@@ -203,6 +233,9 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
+        for view in [header, search, listArea, divider, permissionRow, messageLabel, footer] {
+            view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        }
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
             stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -16),
@@ -218,7 +251,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         search.stringValue = ""
         messageLabel.isHidden = true
         updatePermission(hasPermission)
-        countLabel.stringValue = "\(entries.count) 条记录\(paused ? " · 已暂停" : "")"
+        countLabel.stringValue = L10n.tr("{0} 条记录{1}", String(describing: entries.count), String(describing: paused ? L10n.tr(" · 已暂停") : ""))
         reload(keepingSelection: false)
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         if let window {
@@ -250,13 +283,13 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
 
     func update(entries: [HistoryEntry], paused: Bool) {
         allEntries = entries
-        countLabel.stringValue = "\(entries.count) 条记录\(paused ? " · 已暂停" : "")"
+        countLabel.stringValue = L10n.tr("{0} 条记录{1}", String(describing: entries.count), String(describing: paused ? L10n.tr(" · 已暂停") : ""))
         reload(keepingSelection: true)
     }
 
     func updatePermission(_ allowed: Bool) {
         permissionRow.isHidden = allowed
-        footerLabel.stringValue = "↑ ↓ 选择   空格预览   ↩ 粘贴   esc 关闭"
+        footerLabel.stringValue = L10n.tr("↑ ↓ 选择   空格预览   ↩ 粘贴   esc 关闭")
     }
 
     func showMessage(_ text: String) {
@@ -287,7 +320,7 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         }
         switch commandSelector {
         case #selector(NSResponder.insertNewline(_:)):
-            onKeyboardRoute?("搜索框命令：回车已接收")
+            onKeyboardRoute?(L10n.tr("搜索框命令：回车已接收"))
             if NSApp.currentEvent?.isARepeat != true { acceptSelection() }
         case #selector(NSResponder.moveDown(_:)): moveSelection(1)
         case #selector(NSResponder.moveUp(_:)): moveSelection(-1)
@@ -308,8 +341,8 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         table.reloadData()
         let isEmpty = filteredEntries.isEmpty
         emptyTitle.superview?.isHidden = !isEmpty
-        emptyTitle.stringValue = query.isEmpty ? "你的下一次复制，会出现在这里" : "没有找到匹配的记录"
-        emptySubtitle.stringValue = query.isEmpty ? "先用 ⌘C 复制，再用 \(shortcutName) 找回。" : "试试其他关键词，或清空搜索。"
+        emptyTitle.stringValue = query.isEmpty ? L10n.tr("你的下一次复制，会出现在这里") : L10n.tr("没有找到匹配的记录")
+        emptySubtitle.stringValue = query.isEmpty ? L10n.tr("先用 ⌘C 复制，再用 {0} 找回。", String(describing: shortcutName)) : L10n.tr("试试其他关键词，或清空搜索。")
         if !isEmpty {
             let row = previousID.flatMap { id in filteredEntries.firstIndex { $0.id == id } }
                 ?? (keepingSelection ? max(0, min(previousRow, filteredEntries.count - 1)) : 0)
@@ -434,13 +467,13 @@ final class HistoryPanelController: NSWindowController, NSWindowDelegate, NSTabl
         let menu = NSMenu()
         menu.delegate = self
         let title: String
-        if case .image = entry.payload { title = "查看原图" } else { title = "预览完整内容" }
+        if case .image = entry.payload { title = L10n.tr("查看原图") } else { title = L10n.tr("预览完整内容") }
         let item = menu.addItem(withTitle: title, action: #selector(previewFromMenu(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = entry.id
         if onFavorite != nil {
             menu.addItem(.separator())
-            let favorite = menu.addItem(withTitle: isFavorite?(entry) == true ? "取消收藏" : "收藏到未分类", action: #selector(toggleFavoriteFromMenu(_:)), keyEquivalent: "")
+            let favorite = menu.addItem(withTitle: isFavorite?(entry) == true ? L10n.tr("取消收藏") : L10n.tr("收藏到未分类"), action: #selector(toggleFavoriteFromMenu(_:)), keyEquivalent: "")
             favorite.target = self;favorite.representedObject = entry.id
         }
         return menu

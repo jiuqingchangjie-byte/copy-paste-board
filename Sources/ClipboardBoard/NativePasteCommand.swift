@@ -69,9 +69,9 @@ enum AccessibilityPasteMenu {
         AXUIElementSetMessagingTimeout(app, 0.3)
         guard let bar = AXRead.element(app, kAXMenuBarAttribute) else { return .notAvailable }
         let top = AXRead.children(bar)
-        let editTitles = Set(["Edit", "编辑", "編輯", "編集", "Bearbeiten", "Édition", "Editar", "Modifica"])
+        let editTitles = Set(["Edit", "编辑", "編輯", "編集", "편집", "Bearbeiten", "Édition", "Editar", "Modifica"])
         let preferred = top.filter { editTitles.contains(AXRead.value($0, kAXTitleAttribute) as? String ?? "") }
-        let pasteTitles = Set(["Paste", "粘贴", "貼上", "粘貼", "貼り付け", "Einfügen", "Coller", "Pegar", "Incolla"])
+        let pasteTitles = Set(["Paste", "粘贴", "貼上", "粘貼", "貼り付け", "ペースト", "붙여넣기", "Einfügen", "Coller", "Pegar", "Incolla"])
         let others = top.filter { item in !preferred.contains { CFEqual($0, item) } }
         var stack = (preferred + others).reversed().map { ($0, 0) }
         let deadline = Date().addingTimeInterval(1)

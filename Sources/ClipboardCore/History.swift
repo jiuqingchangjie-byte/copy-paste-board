@@ -24,7 +24,7 @@ public enum ClipPayload: Codable, Equatable {
     public var searchableText: String {
         switch self {
         case .text(let text): return text
-        case .image: return "图片 image png"
+        case .image: return "图片 image png 画像 이미지"
         case .files(let urls): return urls.compactMap { URL(string: $0)?.path }.joined(separator: "\n")
         }
     }
