@@ -4,15 +4,15 @@
 
 A native macOS menu bar clipboard history app. Press **⌥ Option + V** to find recently copied text, images, and files, select an entry with the arrow keys, and press Return to paste into the original application.
 
-Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.6.1**, with Simplified Chinese, English, Japanese, and Korean interfaces and the same compact history panel size in every language.
+Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with Sparkle for in-app updates and no account requirement. Current source version: **1.7.0**, with Simplified Chinese, English, Japanese, and Korean interfaces and the same compact history panel size in every language.
 
 ## Download the app
 
-[Download v1.6.1 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.6.1/ClipboardBoard-v1.6.1-macos-arm64.zip)
+[Download v1.7.0 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.7.0/ClipboardBoard-v1.7.0-macos-arm64.zip)
 
 Extract the ZIP, move `ClipboardBoard.app` to `Applications` inside your home folder (`~/Applications`), and open it. No source build, Xcode, signing tools, or Apple Developer membership is needed. Bilingual installation instructions are included.
 
-The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.6.1)
+The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.7.0)
 
 ## Features
 
@@ -130,13 +130,19 @@ With Accessibility access, the app first attempts the target application's nativ
 
 If the native Paste menu is missing or disabled, the app attempts one Command-V fallback only while keyboard-event permission, the original target focus, released keys, and clipboard contents remain valid. A successful or uncertain menu action never triggers a second paste. Inspect the original request target and failure stage through **… → 粘贴诊断**. Restoring the original input field and receiving the content still depend on the target application's support.
 
+### In-app updates
+
+The menu provides Check for Updates, Automatically Check for Updates, and Automatically Download and Install Updates. Automatic checks are enabled by default (normally every 24 hours); downloading and installing automatically is opt-in. Manual checks remain available when automatic checks are disabled. Updates replace the app while preserving history, favorites, and storage configuration.
+
+Both feeds and archives require EdDSA signatures, with archive verification before extraction. Network access is limited to software updates on GitHub; clipboard content and system profiling data are not uploaded. Sparkle dialogs follow the macOS language; app menu items follow the selected app language. Users on 1.6.1 or earlier must manually install a version with the updater once. See [automatic updates and publishing](docs/AUTO_UPDATE.md).
+
 ### Launch at login
 
 Use the packaged `.app` from a stable location writable by the current user. Running only `swift run` cannot register the login item. If the menu shows **等待系统批准 · 尚未生效** (awaiting system approval; not active), use **去设置** to approve it, or turn the switch off to cancel the request.
 
 ## Data and privacy
 
-Custom storage is recorded in `ClipboardBoardConfig/storage-location.json` beside the app. Preserve this folder during updates and moves. Missing custom storage produces an error rather than an empty fallback. External cloud/network software may sync selected folders; the app itself does not initiate networking. Favorites use SQLite transactions and full synchronization; JSON files are flushed before atomic replacement. Copies not yet captured or flushed cannot be guaranteed after a crash.
+Custom storage is recorded in `ClipboardBoardConfig/storage-location.json` beside the app. Preserve this folder during updates and moves. Missing custom storage produces an error rather than an empty fallback. External cloud/network software may sync selected folders. The app connects to GitHub for software updates but does not upload clipboard data. Favorites use SQLite transactions and full synchronization; JSON files are flushed before atomic replacement. Copies not yet captured or flushed cannot be guaranteed after a crash.
 
 ```text
 Installation directory/
@@ -166,7 +172,7 @@ Installation directory/
 - The global shortcut defaults to **⌥V** and can be customized. System shortcuts and exclusive registrations are checked; app-local shortcuts and nonexclusive listeners cannot all be enumerated. The menu bar remains available.
 - File references may stop working if the original files are moved or deleted.
 - History uses a single JSON file rewritten on each change. Large image histories can increase disk usage, memory consumption, and startup cost.
-- Cross-device sync and automatic updates are not implemented. Pinned image windows are session-only viewers; save to favorites for long-term retention.
+- Cross-device sync is not implemented. Pinned image windows are session-only viewers; save to favorites for long-term retention.
 
 ## Development and verification
 
@@ -200,7 +206,7 @@ This script modifies and re-signs a temporary copy without replacing the origina
 Before each live acceptance run, verify the process against the intended build, specifying its installed location when necessary:
 
 ```bash
-./scripts/verify-running.sh 1.6.1 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.7.0 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 The check compares the running path, version, build ID, executable hash, and signature with the current `dist` build. Even an older build with the same version number is rejected.

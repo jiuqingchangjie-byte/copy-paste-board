@@ -11,6 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var shortcutName: String { (hotKey.activeShortcut ?? settings.shortcut).displayName }
     private var shortcutError: String?
     private let pasteService = PasteService()
+    private lazy var softwareUpdates = SoftwareUpdateService { [weak self] in
+        guard let self else { return false }
+        return !self.relocatingStorage && !self.storageBusy && !self.favorites.library.isMutating
+            && self.storageReady && self.saveError == nil
+    }
     private let launchAtLogin = LaunchAtLoginService()
     private var panel: HistoryPanelController!
     private var statusItem: NSStatusItem!
@@ -81,6 +86,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         monitor.start()
         RuntimeIdentity.write()
+        softwareUpdates.beforeCheck = { [weak self] in self?.panel.dismiss() }
+        softwareUpdates.start()
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self, self.panel.isVisible else { return }
             self.panel.updatePermission(self.pasteService.hasPermission)
@@ -161,6 +168,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.makeMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: view.bounds.minY), in: view)
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Sparkle also uses normal app termination. A relocation needs the main
+        // queue to finish committing its pointer before this process can exit.
+        if relocatingStorage { return .terminateCancel }
+        return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -436,6 +450,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let version = NSMenuItem(title: L10n.tr("剪贴板 {0}", String(describing: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? L10n.tr("开发版"))), action: nil, keyEquivalent: "")
         version.isEnabled = false
         menu.addItem(version)
+        softwareUpdates.appendMenuItems(to: menu)
+        menu.addItem(.separator())
         _ = item(L10n.tr("退出剪贴板"), #selector(quit))
         return menu
     }

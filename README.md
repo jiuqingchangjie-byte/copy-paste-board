@@ -4,15 +4,15 @@
 
 一个原生 macOS 菜单栏剪贴板历史工具。按 **⌥ Option + V** 找回最近复制的文字、图片和文件，使用方向键选择，再按回车粘贴到原应用。
 
-采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，无第三方包依赖，无账号和网络服务。当前版本 **1.6.1**，支持中文（简体）、英语、日语、韩语切换，四语历史窗口保持相同紧凑尺寸。
+采用类似 Windows 剪贴板历史的紧凑卡片列表，支持浅色与深色外观。使用 Swift / AppKit 开发，通过 Sparkle 提供应用内更新，无需账号。当前源码版本 **1.7.0**，支持中文（简体）、英语、日语、韩语切换，四语历史窗口保持相同紧凑尺寸。
 
 ## 直接下载安装
 
-[下载 v1.6.1 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.6.1/ClipboardBoard-v1.6.1-macos-arm64.zip)
+[下载 v1.7.0 应用包（Apple Silicon / M 系列 Mac）](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.7.0/ClipboardBoard-v1.7.0-macos-arm64.zip)
 
 解压后将 `ClipboardBoard.app` 放入个人主目录下的 `Applications` 文件夹（`~/Applications`），再打开。不需要源码、Xcode、签名工具或 Apple 开发者会员。包内附有中英文安装说明。
 
-应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.6.1)
+应用使用固定自签名证书，**未经 Apple 公证**。首次打开若提示开发者无法验证，尝试打开后在「系统设置 → 隐私与安全性」选择「仍要打开」，再按提示授予辅助功能权限。[详细安装说明](docs/INSTALL_APP.md) · [Release 与校验文件](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.7.0)
 
 ## 功能
 
@@ -136,6 +136,12 @@ open dist/ClipboardBoard.app
 
 系统粘贴菜单缺失或禁用时，会在模拟按键权限、原目标焦点、按键与剪贴板状态仍有效的前提下尝试一次 ⌘V。菜单已执行或结果不确定时，不会补发第二次粘贴。可通过 **… → 粘贴诊断** 查看本次请求的目标与失败阶段。原输入框恢复和内容接收仍取决于目标应用支持。
 
+### 应用内更新
+
+菜单提供“检查更新…”、“自动检查更新”和“自动下载并安装更新”。默认自动检查（通常每 24 小时），自动下载安装由用户自行开启；关闭自动检查后仍可手动检查。更新只替换应用本体，保留历史、收藏和存储位置配置。
+
+更新清单与更新包均验证 EdDSA 签名，解包前校验；应用仅为更新连接 GitHub，不上传剪贴板内容，也不发送系统分析数据。Sparkle 自带的更新对话框随 macOS 的语言显示，菜单选项随应用语言显示。1.6.1 及更早版本须手动安装首个带更新器的版本。[自动更新与发版说明](docs/AUTO_UPDATE.md)。
+
 ### 登录自启
 
 使用打包后的 `.app`，放在固定且当前用户可写的位置后启用。仅运行 `swift run` 无法注册登录项。若显示「等待系统批准 · 尚未生效」，使用「去设置」完成批准，或关闭开关取消请求。
@@ -153,7 +159,7 @@ open dist/ClipboardBoard.app
 
 - 历史与收藏保存完整文本、图片数据和文件 URL；文件本体不会被复制。收藏不参与普通历史淘汰。
 - 自定义位置后，应用旁的 `ClipboardBoardConfig/storage-location.json` 记录数据目录；更新和移动应用时保留配置文件夹。位置不可用时提示重试，不自动回落到空目录。
-- 选择云盘/网络目录时，外部软件可能同步这些文件；应用本身不主动联网。
+- 选择云盘/网络目录时，外部软件可能同步这些文件；应用的联网仅用于检查和下载软件更新，不上传剪贴板数据。
 - JSON 文件刷新后原子替换，收藏采用 SQLite 事务与完整同步；目录权限为 `0700`、数据文件权限为 `0600`，内容没有额外加密。未被采集或尚未写盘的最后一次复制不能保证在故障后恢复。
 - 安装目录必须可写。移动应用时，将旁边的 `ClipboardBoardData` 一并移动；通过 **… → 打开数据目录** 定位。
 - 旧版 Application Support 数据会尝试迁移。已有新数据（包括已清空的历史）优先，迁移失败会保留原文件并提示。
@@ -172,7 +178,7 @@ open dist/ClipboardBoard.app
 - 默认快捷键为 **⌥V**，可在 **… → 自定义快捷键** 修改。冲突检查不能穷举其他软件的应用内快捷键或非排他监听；菜单栏入口始终可用。
 - 文件引用在原文件移动或删除后可能失效。
 - 历史保存在单个 JSON 文件，每次变化整体保存；大量图片可能增加存储、内存和启动开销。
-- 当前没有跨设备同步或自动更新功能；图片置顶窗口仅限本次运行，长期保存请使用收藏库。
+- 当前没有跨设备同步；图片置顶窗口仅限本次运行，长期保存请使用收藏库。
 
 ## 开发与验证
 
@@ -206,7 +212,7 @@ CLIPBOARD_PREVIEW_DIR="$PWD/.build/previews" ./scripts/test.sh
 每轮实机验收先核对进程与本轮构建，安装位置不是 `dist` 时显式传入路径：
 
 ```bash
-./scripts/verify-running.sh 1.6.1 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.7.0 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 脚本会比较运行路径、版本、构建编号、可执行文件哈希和签名，并与本轮 `dist` 构建对照；同版本旧构建也会被拒绝。

@@ -9,8 +9,16 @@
     <key>CFBundleName</key><string>ClipboardBoard</string>
     <key>CFBundleDisplayName</key><string>剪贴板</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.6.1</string>
-    <key>CFBundleVersion</key><string>15</string>
+    <key>CFBundleShortVersionString</key><string>1.7.0</string>
+    <key>CFBundleVersion</key><string>16</string>
+    <key>SUFeedURL</key><string>https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>U3wk4MW+KzSRTZsRar3C6FFt3PJCBfpypquNgW6z/3I=</string>
+    <key>SUEnableAutomaticChecks</key><true/>
+    <key>SUAutomaticallyUpdate</key><false/>
+    <key>SUEnableSystemProfiling</key><false/>
+    <key>SUVerifyUpdateBeforeExtraction</key><true/>
+    <key>SURequireSignedFeed</key><true/>
+    <key>SUSignedFeedFailureExpirationInterval</key><integer>0</integer>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>

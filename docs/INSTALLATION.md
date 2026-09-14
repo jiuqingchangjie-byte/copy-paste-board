@@ -31,7 +31,7 @@ open "$HOME/Applications/ClipboardBoard.app"
 当前默认：先构建并验收，再运行 `./scripts/package-app.sh`，它仅打包已验收的应用，不重建、不重新签名。生成 `ClipboardBoard-v版本-macos-架构.zip` 及其 `.sha256` 文件；将两者附加到对应 GitHub Release。包内只包含应用、安装说明和 LICENSE，不包含真实数据或签名材料。
 
 
-源码版本由 `.github/workflows/release.yml` 发布：提交对应的 `docs/releases/vX.Y.Z.md`，确认标签与 Info.plist 版本一致后推送 `vX.Y.Z` 标签。GitHub Actions 会生成源码 ZIP 和 SHA-256 校验文件，再使用该版本的中英文说明创建 Release。源码发行流程不需要本机 GitHub API 凭据，也不上传签名材料。
+从 1.7.0 开始，`.github/workflows/release.yml` 在推送标签后只创建包含源码 ZIP 和校验文件的 Release 草稿。必须准备并上传签名更新包、`appcast.xml` 和手动安装包，核对全部附件后才公开发布，避免自动更新读取到不完整的最新版。发布者可使用 `scripts/publish-release.sh` 完成上传、远端哈希校验和最终发布；详见 [自动更新与发版](AUTO_UPDATE.md)。签名私钥不上传到 GitHub。
 
 当前使用 `ClipboardBoard Local Development` 固定自签名身份，已提供编译好的下载包，**不声称经过 Apple 公证**。以下公证流程仅供将来有需要时选择，并非 GitHub 发版前置条件。
 

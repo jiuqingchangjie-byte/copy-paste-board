@@ -2,6 +2,11 @@
 // Compiled into the core so signed app and SwiftPM builds use the same catalog.
 extension L10n {
     static let catalog: [String: [String]] = [
+        "检查更新…": ["Check for Updates…", "アップデートを確認…", "업데이트 확인…"],
+        "自动检查更新": ["Automatically Check for Updates", "アップデートを自動確認", "자동으로 업데이트 확인"],
+        "自动下载并安装更新": ["Automatically Download and Install Updates", "アップデートを自動ダウンロードしてインストール", "업데이트 자동 다운로드 및 설치"],
+        "更新服务暂不可用": ["Updates Are Unavailable", "アップデートを利用できません", "업데이트를 사용할 수 없습니다"],
+        "请从已安装的应用中检查更新。": ["Check for updates from the installed application.", "インストール済みのアプリからアップデートを確認してください。", "설치된 앱에서 업데이트를 확인해 주세요."],
         "尚未使用历史记录": ["History has not been used yet", "履歴はまだ使用されていません", "아직 기록을 사용하지 않았습니다"],
         "尚未接收回车": ["Return has not been received yet", "Return キーの入力はまだありません", "아직 Return 키 입력이 없습니다"],
         "收藏库": ["Favorites", "お気に入り", "즐겨찾기"],

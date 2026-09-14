@@ -1,4 +1,4 @@
-name: Publish source release
+name: Prepare release draft
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
           git archive --format=zip --prefix="ClipboardBoard-$RELEASE_TAG/" HEAD > "release-assets/ClipboardBoard-$RELEASE_TAG-source.zip"
           cd release-assets
           sha256sum "ClipboardBoard-$RELEASE_TAG-source.zip" > SHA256SUMS.txt
-      - name: Publish GitHub Release
+      - name: Prepare GitHub Release draft
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -61,6 +61,6 @@ jobs:
           gh release create "$RELEASE_TAG" \
             "release-assets/ClipboardBoard-$RELEASE_TAG-source.zip" \
             release-assets/SHA256SUMS.txt \
-            --verify-tag --latest \
+            --verify-tag --draft \
             --title "ClipboardBoard $RELEASE_TAG" \
             --notes-file "docs/releases/$RELEASE_TAG.md"

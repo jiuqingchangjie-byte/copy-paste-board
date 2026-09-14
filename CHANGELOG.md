@@ -4,6 +4,14 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.7.0
+
+- 接入 Sparkle 2.10.0，新增手动检查更新、自动检查和自动下载安装选项；默认自动检查，自动安装由用户选择。
+- 更新包及清单要求 EdDSA 签名；解包前校验，更新替换应用并保留历史、收藏和自定义存储配置，迁移完成前不退出安装。
+- 改进发布流程：标签只创建草稿，签名附件与远端哈希全部校验后才发布为最新版，避免暴露不完整更新。
+- Add Sparkle updates with persistent preferences, signed feeds and archives, guarded relaunch, and complete-assets-before-publication release tooling.
+- 146 项 Swift 测试、17 项脚本测试通过；隔离实机验证手动升级、后台下载/退出安装、签名篡改拒绝、配置与权限保留。详见 [自动更新验收](docs/AUTO_UPDATE.md)。
+
 ## 1.6.1
 
 - 修复系统“粘贴”菜单禁用时直接终止的问题：在权限、原目标焦点、按键和剪贴板状态仍有效时，尝试一次 ⌘V；菜单已执行或结果不确定时不补发。
