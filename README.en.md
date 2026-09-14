@@ -4,15 +4,15 @@
 
 A native macOS menu bar clipboard history app. Press **⌥ Option + V** to find recently copied text, images, and files, select an entry with the arrow keys, and press Return to paste into the original application.
 
-Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.6.0**, with Simplified Chinese, English, Japanese, and Korean interfaces and the same compact history panel size in every language.
+Its compact card list is inspired by Windows clipboard history and supports light and dark appearances. Built with Swift and AppKit, with no third-party package dependencies, accounts, or network services. Current version: **1.6.1**, with Simplified Chinese, English, Japanese, and Korean interfaces and the same compact history panel size in every language.
 
 ## Download the app
 
-[Download v1.6.0 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.6.0/ClipboardBoard-v1.6.0-macos-arm64.zip)
+[Download v1.6.1 for Apple Silicon / M-series Macs](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/download/v1.6.1/ClipboardBoard-v1.6.1-macos-arm64.zip)
 
 Extract the ZIP, move `ClipboardBoard.app` to `Applications` inside your home folder (`~/Applications`), and open it. No source build, Xcode, signing tools, or Apple Developer membership is needed. Bilingual installation instructions are included.
 
-The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.6.0)
+The app uses a stable self-signed certificate and **is not notarized by Apple**. If the developer cannot be verified, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** and grant Accessibility access when prompted. [Installation guide](docs/INSTALL_APP.md) · [Release and checksums](https://github.com/jiuqingchangjie-byte/copy-paste-board/releases/tag/v1.6.1)
 
 ## Features
 
@@ -128,7 +128,7 @@ Use **去授权** in the panel to open **System Settings → Privacy & Security 
 
 With Accessibility access, the app first attempts the target application's native Paste menu command. Permission to post keyboard events provides an alternative path; both permissions are not required together. History capture and browsing work without these permissions, but Return and double-click report that pasting is unavailable instead of silently becoming copy-only actions.
 
-A disabled Paste command is reported as unavailable. An uncertain menu-action result does not trigger a second automatic paste. Inspect the current state through **… → 粘贴诊断**. Restoring the original input field and receiving the content still depend on the target application's support.
+If the native Paste menu is missing or disabled, the app attempts one Command-V fallback only while keyboard-event permission, the original target focus, released keys, and clipboard contents remain valid. A successful or uncertain menu action never triggers a second paste. Inspect the original request target and failure stage through **… → 粘贴诊断**. Restoring the original input field and receiving the content still depend on the target application's support.
 
 ### Launch at login
 
@@ -200,7 +200,7 @@ This script modifies and re-signs a temporary copy without replacing the origina
 Before each live acceptance run, verify the process against the intended build, specifying its installed location when necessary:
 
 ```bash
-./scripts/verify-running.sh 1.6.0 "$HOME/Applications/ClipboardBoard.app"
+./scripts/verify-running.sh 1.6.1 "$HOME/Applications/ClipboardBoard.app"
 ```
 
 The check compares the running path, version, build ID, executable hash, and signature with the current `dist` build. Even an older build with the same version number is rejected.

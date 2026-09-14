@@ -44,6 +44,7 @@ final class PasteService {
     private var operationID = UUID()
     private let environment: PasteEnvironment
     var onProgress: ((String) -> Void)?
+    private(set) var diagnosticStage = "idle"
 
     init(environment: PasteEnvironment = SystemPasteEnvironment()) { self.environment = environment }
     var hasPermission: Bool { environment.hasPermission }
@@ -71,6 +72,7 @@ final class PasteService {
     func paste(intoPID pid: pid_t?, prepareClipboard: () -> Bool = { true }, beforeActivation: @escaping () -> Void,
                completion: @escaping (Outcome) -> Void) {
         cancel()
+        diagnosticStage = "validate-target"
         onProgress?(L10n.tr("已接收粘贴请求"))
         guard hasPermission else { completion(.permissionRequired); return }
         guard let pid, pid != environment.ownPID, environment.isRunning(pid) else {
@@ -79,7 +81,9 @@ final class PasteService {
         }
         // Enter and double-click mean paste. Do not silently turn either action
         // into a clipboard-only copy when permission or the target is missing.
+        diagnosticStage = "prepare-clipboard"
         guard prepareClipboard() else { completion(.clipboardWriteFailed); return }
+        diagnosticStage = "release-keys"
         let operation = operationID
         let clipboardVersion = environment.clipboardChangeCount
         // Keep the panel open while Return is held so key repeats cannot enter the editor.
@@ -104,6 +108,7 @@ final class PasteService {
             return
         }
         beforeActivation()
+        diagnosticStage = "activate-target"
         onProgress?(L10n.tr("正在恢复目标程序"))
         guard operationID == operation else { return }
         // A nonactivating panel can own key focus while frontmostApplication is
@@ -119,6 +124,7 @@ final class PasteService {
                                attempt: Int, completion: @escaping (Outcome) -> Void) {
         guard operationID == operation else { return }
         guard validate(pid, clipboardVersion: clipboardVersion, completion: completion) else { return }
+        diagnosticStage = "wait-target"
         let focused = environment.frontmostPID == pid
         if !focused, environment.frontmostPID != environment.ownPID && environment.frontmostPID != nil {
             completion(.focusChanged)
@@ -135,9 +141,11 @@ final class PasteService {
             }
             return
         }
+        diagnosticStage = "restore-input-focus"
         guard environment.restoreTargetFocus(pid) else { completion(.targetUnavailable); return }
         guard environment.frontmostPID == pid else { completion(.focusChanged); return }
         onProgress?(L10n.tr("已恢复原输入框，正在提交粘贴"))
+        diagnosticStage = "deliver-paste"
         switch environment.deliverPaste(into: pid) {
         case .submitted: completion(.eventPosted)
         case .unavailable: completion(.targetUnavailable)

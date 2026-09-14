@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyRegistered = false
     private var lastPasteProgress = L10n.tr("尚未使用历史记录")
     private var lastKeyboardRoute = L10n.tr("尚未接收回车")
+    private var lastPasteTargetName: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Keep only one monitor/hotkey owner, even if launched twice from the command line.
@@ -363,6 +364,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func use(_ entry: HistoryEntry) {
+        // A failure can reopen the panel and recapture a different foreground
+        // app. Diagnostics must retain the target of the actual paste attempt.
+        lastPasteTargetName = targetApplication?.localizedName ?? L10n.tr("无")
         pasteService.paste(into: targetApplication, prepareClipboard: { [weak self] in
             self?.monitor.write(entry.payload) ?? false
         }, beforeActivation: { [weak self] in
@@ -372,7 +376,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.dismissingForPaste = false
         }) { [weak self] outcome in
             guard let self else { return }
-            self.lastPasteProgress = outcome.localizedDescription
+            self.lastPasteProgress = "\(outcome.localizedDescription) [\(self.pasteService.diagnosticStage)]"
             switch outcome {
             case .eventPosted: break
             case .permissionRequired:
@@ -510,7 +514,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.dismiss()
         let alert = NSAlert()
         alert.messageText = L10n.tr("粘贴诊断")
-        alert.informativeText = L10n.tr("版本：{0} · {1}\n辅助功能：{2}\n模拟按键：{3}\n目标程序：{4}\n回车路径：{5}\n最近状态：{6}", String(describing: RuntimeIdentity.version), String(describing: RuntimeIdentity.buildID), String(describing: AXIsProcessTrusted() ? L10n.tr("已允许") : L10n.tr("未允许")), String(describing: CGPreflightPostEventAccess() ? L10n.tr("已允许") : L10n.tr("未允许")), String(describing: targetApplication?.localizedName ?? L10n.tr("无")), String(describing: lastKeyboardRoute), String(describing: lastPasteProgress))
+        alert.informativeText = L10n.tr("版本：{0} · {1}\n辅助功能：{2}\n模拟按键：{3}\n目标程序：{4}\n回车路径：{5}\n最近状态：{6}", String(describing: RuntimeIdentity.version), String(describing: RuntimeIdentity.buildID), String(describing: AXIsProcessTrusted() ? L10n.tr("已允许") : L10n.tr("未允许")), String(describing: CGPreflightPostEventAccess() ? L10n.tr("已允许") : L10n.tr("未允许")), String(describing: lastPasteTargetName ?? targetApplication?.localizedName ?? L10n.tr("无")), String(describing: lastKeyboardRoute), String(describing: lastPasteProgress))
         alert.addButton(withTitle: L10n.tr("关闭"))
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()

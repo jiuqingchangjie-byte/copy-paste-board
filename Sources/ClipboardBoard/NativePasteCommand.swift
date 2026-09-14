@@ -12,6 +12,9 @@ enum MenuPasteResult { case performed, notAvailable, disabled, uncertain }
 
 protocol PasteCommandBackend {
     var capabilities: PasteCapabilities { get }
+    var frontmostPID: pid_t? { get }
+    var keysAreReleased: Bool { get }
+    var clipboardChangeCount: Int { get }
     func pressPasteMenu(in pid: pid_t) -> MenuPasteResult
     func postPasteShortcut() -> Bool
 }
@@ -19,15 +22,23 @@ protocol PasteCommandBackend {
 enum NativePasteCommand {
     static func deliver(to pid: pid_t, using backend: PasteCommandBackend) -> PasteDelivery {
         let access = backend.capabilities
+        let clipboardVersion = backend.clipboardChangeCount
         if access.accessibility {
             switch backend.pressPasteMenu(in: pid) {
             case .performed: return .submitted
-            case .disabled: return .unavailable
             case .uncertain: return .uncertain // Never send a second paste after a possible timeout.
-            case .notAvailable: break
+            // Custom editors can handle Command-V while their native menu stays
+            // disabled. Neither result has performed an action, so one keyboard
+            // attempt is safe; an AX success or timeout must never fall through.
+            case .disabled, .notAvailable: break
             }
         }
-        guard access.eventPosting else { return .unavailable }
+        // AX menu traversal can take time. Recheck the live permissions, focus,
+        // physical keys and clipboard before sending a global keyboard event.
+        guard backend.capabilities.eventPosting,
+              backend.frontmostPID == pid,
+              backend.keysAreReleased,
+              backend.clipboardChangeCount == clipboardVersion else { return .unavailable }
         return backend.postPasteShortcut() ? .submitted : .unavailable
     }
 }

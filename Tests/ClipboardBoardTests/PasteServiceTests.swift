@@ -257,6 +257,7 @@ struct PasteServiceTests {
         service.paste(intoPID: environment.targetPID, beforeActivation: {}) { outcomes.append($0) }
 
         #expect(outcomes == [.targetUnavailable])
+        #expect(service.diagnosticStage == "activate-target")
         #expect(environment.activatedPIDs == [environment.targetPID])
         #expect(environment.postAttempts == 0)
         #expect(environment.pendingCount == 0)
@@ -328,7 +329,22 @@ struct PasteServiceTests {
         environment.drain()
 
         #expect(outcomes == [.targetUnavailable])
+        #expect(service.diagnosticStage == "deliver-paste")
         #expect(environment.postAttempts == 1)
+        #expect(environment.pendingCount == 0)
+    }
+
+    @Test func failedInputFocusRestorationStopsBeforeDeliveryAndIdentifiesStage() {
+        let environment = MockPasteEnvironment()
+        environment.restoresInputFocus = false
+        let service = PasteService(environment: environment)
+        var outcomes: [PasteService.Outcome] = []
+        service.paste(intoPID: environment.targetPID, beforeActivation: {}) { outcomes.append($0) }
+        environment.drain()
+
+        #expect(outcomes == [.targetUnavailable])
+        #expect(service.diagnosticStage == "restore-input-focus")
+        #expect(environment.postAttempts == 0)
         #expect(environment.pendingCount == 0)
     }
 
@@ -389,6 +405,7 @@ private final class MockPasteEnvironment: PasteEnvironment {
     var activationSucceeds = true
     var activationChangesFocus = true
     var postSucceeds = true
+    var restoresInputFocus = true
     var trace: [String] = []
     private(set) var activatedPIDs: [pid_t] = []
     private(set) var postAttempts = 0
@@ -399,6 +416,7 @@ private final class MockPasteEnvironment: PasteEnvironment {
     var pendingCount: Int { jobs.count }
 
     func isRunning(_ pid: pid_t) -> Bool { runningPIDs.contains(pid) }
+    func restoreTargetFocus(_ pid: pid_t) -> Bool { restoresInputFocus }
 
     func activate(_ pid: pid_t) -> Bool {
         trace.append("activate")

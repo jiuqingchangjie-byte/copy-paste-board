@@ -4,6 +4,13 @@
 
 Versions are listed newest first. These entries describe changes at each release; see the READMEs for current behavior.
 
+## 1.6.1
+
+- 修复系统“粘贴”菜单禁用时直接终止的问题：在权限、原目标焦点、按键和剪贴板状态仍有效时，尝试一次 ⌘V；菜单已执行或结果不确定时不补发。
+- 粘贴诊断增加失败阶段，并保留本次粘贴的目标名称，避免失败后重新打开面板覆盖诊断目标。
+- Allow one guarded Command-V fallback when an application's native Paste menu is disabled. Preserve duplicate-paste protection and record the original target and failure stage in diagnostics.
+- 140 项 Swift 测试通过，用户实机确认微信回车与双击均恢复；本机验证范围见 [粘贴兼容性记录](docs/PASTE_COMPATIBILITY.md)。
+
 ## 1.6.0
 
 - 修正非中文界面导致历史窗口变宽：四语统一 340 × 490 点，使用紧凑操作图标与可换行提示。
